@@ -49,7 +49,12 @@ fi
 
 echo "OK... here we go..."
 
-# Get the artifacts bucket from the Pipeline stack
+# Disable Flow Logs first, so we stop putting things in the S3 bucket 
+FLOW_LOG_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-FlowLogId'].Value" --output text)
+echo "FLOW_LOG_ID=$FLOW_LOG_ID."
+aws ec2 delete-flow-logs --flow-log-ids $FLOW_LOG_ID
+
+# Get the artifacts bucket from the Logging stack
 BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-LoggingBucket'].Value" --output text)
 
 # Empty the utility bucket (Otherwise stack delete will fail)
@@ -59,7 +64,7 @@ aws s3 rm s3://$BUCKET --recursive
 STACK_NAME=$PREFIX-vpc
 echo "Deleting ($STACK_NAME) ..."
 aws cloudformation delete-stack --stack-name $STACK_NAME
-aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME 
+aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME
 
 STACK_NAME=$PREFIX-logging
 echo "Deleting ($STACK_NAME) ..."

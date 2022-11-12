@@ -686,3 +686,9 @@ Outputs:
     Value: !Ref DBSubnetGroup
     Export:
       Name: !Join ["-", [!Ref Prefix, "DBSubnetGroup"]]
+
+  VPCFlowLogId:
+    Description: "Flow Log ID for VPC"
+    Value: !Ref VPCFlowLogs
+    Export:
+      Name: !Join ["-", [!Ref Prefix, "FlowLogId"]]

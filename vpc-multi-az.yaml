@@ -1,0 +1,646 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+#   ______   __    __  _______   ________  _______         __     __  _______    ______  
+#  /      \ |  \  |  \|       \ |        \|       \       |  \   |  \|       \  /      \ 
+# |  $$$$$$\| $$  | $$| $$$$$$$\| $$$$$$$$| $$$$$$$\      | $$   | $$| $$$$$$$\|  $$$$$$\
+# | $$___\$$| $$  | $$| $$__/ $$| $$__    | $$__| $$ _____| $$   | $$| $$__/ $$| $$   \$$
+#  \$$    \ | $$  | $$| $$    $$| $$  \   | $$    $$|      \$$\ /  $$| $$    $$| $$      
+#  _\$$$$$$\| $$  | $$| $$$$$$$ | $$$$$   | $$$$$$$\ \$$$$$$\$$\  $$ | $$$$$$$ | $$   __ 
+# |  \__| $$| $$__/ $$| $$      | $$_____ | $$  | $$         \$$ $$  | $$      | $$__/  \
+#  \$$    $$ \$$    $$| $$      | $$     \| $$  | $$          \$$$   | $$       \$$    $$
+#   \$$$$$$   \$$$$$$  \$$       \$$$$$$$$ \$$   \$$           \$     \$$        \$$$$$$ 
+  
+Description: |
+  VPC - with Private and Public subnets, 2 AZs by default, but 3 AZs is an option via UseThirdAZ parameter.
+  This is meant for trainers/instructors - there are a lot of resources created that cost $
+  For example, Interface Endpoints, and lots of NAT Gateways.
+  
+#
+# Run like this, if you want 2 AZs
+# aws cloudformation deploy --template-file vpc-multi-az.yaml --stack-name "database-vpc"
+#
+# Run like this, if you want 3 AZs
+# aws cloudformation deploy --template-file vpc-multi-az.yaml --parameter-overrides UseThirdAZ=True --stack-name "database-vpc"
+#
+# ASCII ART VIA:
+# https://patorjk.com/software/taag/#p=display&h=2&v=2&f=Big%20Money-se&t=VPC
+#
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Default: demo-super
+    Description: "A Prefix to use on the resource names and exports (To ensure uniqueness). For example, the VPC will be named: demo-super-vpc"
+
+  VpcBlock:
+    Type: String
+    Default: 192.168.0.0/16
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  PublicSubnet01Block:
+    Type: String
+    Default: 192.168.32.0/19
+    Description: CidrBlock for public subnet 01 within the VPC
+
+  PublicSubnet02Block:
+    Type: String
+    Default: 192.168.64.0/19
+    Description: CidrBlock for public subnet 02 within the VPC
+
+  PublicSubnet03Block:
+    Type: String
+    Default: 192.168.96.0/19
+    Description: CidrBlock for public subnet 03 within the VPC
+
+  PrivateSubnet01Block:
+    Type: String
+    Default: 192.168.128.0/19
+    Description: CidrBlock for private subnet 01 within the VPC
+
+  PrivateSubnet02Block:
+    Type: String
+    Default: 192.168.160.0/19
+    Description: CidrBlock for private subnet 02 within the VPC
+
+  PrivateSubnet03Block:
+    Type: String
+    Default: 192.168.192.0/19
+    Description: CidrBlock for private subnet 03 within the VPC
+    
+  UseThirdAZ:
+    Type: String
+    Default: "False"
+    AllowedValues: ["True","False"]
+    Description: "Set to True to use 3 AZs.  Note that this will require an additional EIP for the NATGW."
+
+  UseWithRDS:
+    Type: String
+    Default: "False"
+    AllowedValues: ["True","False"]
+    Description: "Set to True if you plan to use this VPC with RDS Service - this will create a DB Subnet Group and a Security Group with common Database Ports open."
+
+
+Conditions:
+
+  # Using a Third AZ is optional. You'll need 3 available EIP to setup a 3 AZ VPC...
+  CreateThirdAZ: !Equals 
+    - !Ref UseThirdAZ
+    - "True"
+    
+  # Create resources for RDS (DB Subnet Group, Security Group, etc.)
+  UseWithRDS: !Equals
+    - !Ref UseWithRDS
+    - "True"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+  
+    # AWS::CloudFormation::Interface is a metadata key that defines how parameters are grouped and sorted in the AWS CloudFormation console. 
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cloudformation-interface.html
+    ParameterGroups:
+      -
+        Label:
+          default: "Network Configuration"
+        Parameters:
+          - VpcBlock
+          - UseThirdAZ
+          - PublicSubnet01Block
+          - PublicSubnet02Block
+          - PublicSubnet03Block
+          - PrivateSubnet01Block
+          - PrivateSubnet02Block
+          - PrivateSubnet03Block
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:  !Ref VpcBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-vpc'
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+#  _______    ______   __    __ ________  ________   ______  
+# |       \  /      \ |  \  |  \        \|        \ /      \ 
+# | $$$$$$$\|  $$$$$$\| $$  | $$\$$$$$$$$| $$$$$$$$|  $$$$$$\
+# | $$__| $$| $$  | $$| $$  | $$  | $$   | $$__    | $$___\$$
+# | $$    $$| $$  | $$| $$  | $$  | $$   | $$  \    \$$    \ 
+# | $$$$$$$\| $$  | $$| $$  | $$  | $$   | $$$$$    _\$$$$$$\
+# | $$  | $$| $$__/ $$| $$__/ $$  | $$   | $$_____ |  \__| $$
+# | $$  | $$ \$$    $$ \$$    $$  | $$   | $$     \ \$$    $$
+#  \$$   \$$  \$$$$$$   \$$$$$$    \$$    \$$$$$$$$  \$$$$$$ 
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnets
+      - Key: Network
+        Value: Public
+
+  PrivateRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ1
+      - Key: Network
+        Value: Private01
+
+  PrivateRouteTable02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ2
+      - Key: Network
+        Value: Private02
+
+  PrivateRouteTable03:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateThirdAZ
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ3
+      - Key: Network
+        Value: Private03
+
+  PublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRoute01:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable01
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway01
+
+  PrivateRoute02:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable02
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway02
+
+  PrivateRoute03:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Condition: CreateThirdAZ
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable03
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway03
+
+#  __    __   ______ ________         ______   __       __ 
+# |  \  |  \ /      \        \       /      \ |  \  _  |  \
+# | $$\ | $$|  $$$$$$\$$$$$$$$      |  $$$$$$\| $$ / \ | $$
+# | $$$\| $$| $$__| $$ | $$         | $$ __\$$| $$/  $\| $$
+# | $$$$\ $$| $$    $$ | $$         | $$|    \| $$  $$$\ $$
+# | $$\$$ $$| $$$$$$$$ | $$         | $$ \$$$$| $$ $$\$$\$$
+# | $$ \$$$$| $$  | $$ | $$         | $$__| $$| $$$$  \$$$$
+# | $$  \$$$| $$  | $$ | $$          \$$    $$| $$$    \$$$
+#  \$$   \$$ \$$   \$$  \$$           \$$$$$$  \$$      \$$
+
+  NATGateway01:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NATGatewayEIP1.AllocationId'
+      SubnetId: !Ref PublicSubnet01
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGatewayAZ1'
+
+  NATGateway02:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NATGatewayEIP2.AllocationId'
+      SubnetId: !Ref PublicSubnet02
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGatewayAZ2'
+
+  NATGateway03:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Condition: CreateThirdAZ
+    Properties:
+      AllocationId: !GetAtt 'NATGatewayEIP3.AllocationId'
+      SubnetId: !Ref PublicSubnet03
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGatewayAZ3'
+
+  NATGatewayEIP1:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  NATGatewayEIP2:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  NATGatewayEIP3:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Condition: CreateThirdAZ
+    Properties:
+      Domain: vpc
+
+#    ______   __    __  _______   __    __  ________ ________   ______  
+#   /      \ |  \  |  \|       \ |  \  |  \|        \        \ /      \ 
+#  |  $$$$$$\| $$  | $$| $$$$$$$\| $$\ | $$| $$$$$$$$\$$$$$$$$|  $$$$$$\
+#  | $$___\$$| $$  | $$| $$__/ $$| $$$\| $$| $$__      | $$   | $$___\$$
+#   \$$    \ | $$  | $$| $$    $$| $$$$\ $$| $$  \     | $$    \$$    \ 
+#   _\$$$$$$\| $$  | $$| $$$$$$$\| $$\$$ $$| $$$$$     | $$    _\$$$$$$\
+#   | \__| $$| $$__/ $$| $$__/ $$| $$ \$$$$| $$_____   | $$   |  \__| $$
+#   \$$    $$ \$$    $$| $$    $$| $$  \$$$| $$     \  | $$    \$$    $$
+#    \$$$$$$   \$$$$$$  \$$$$$$$  \$$   \$$ \$$$$$$$$   \$$     \$$$$$$ 
+                                                                     
+  PublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 01
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnet01Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PublicSubnet01"
+        # In case we want to use with this EKS
+      - Key: kubernetes.io/role/elb
+        Value: 1
+
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 02
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PublicSubnet02"
+
+  PublicSubnet03:
+    Type: AWS::EC2::Subnet
+    Condition: CreateThirdAZ
+    Metadata:
+      Comment: Subnet 03
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '2'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnet03Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PublicSubnet03"
+ 
+  PrivateSubnet01:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnet01Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PrivateSubnet01"
+ 
+  PrivateSubnet02:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Private Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PrivateSubnet02"
+ 
+  PrivateSubnet03:
+    Type: AWS::EC2::Subnet
+    Condition: CreateThirdAZ
+    Metadata:
+      Comment: Private Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '2'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnet03Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PrivateSubnet03"
+ 
+  PublicSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet02
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet03RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateThirdAZ
+    Properties:
+      SubnetId: !Ref PublicSubnet03
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet01
+      RouteTableId: !Ref PrivateRouteTable01
+
+  PrivateSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet02
+      RouteTableId: !Ref PrivateRouteTable02
+
+  PrivateSubnet03RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateThirdAZ
+    Properties:
+      SubnetId: !Ref PrivateSubnet03
+      RouteTableId: !Ref PrivateRouteTable03
+
+  DBSecurityGroup: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DB Security Group for all databases
+      VpcId: !Ref VPC
+
+#  _______   _______    ______  
+# |       \ |       \  /      \ 
+# | $$$$$$$\| $$$$$$$\|  $$$$$$\
+# | $$__| $$| $$  | $$| $$___\$$
+# | $$    $$| $$  | $$ \$$    \ 
+# | $$$$$$$\| $$  | $$ _\$$$$$$\
+# | $$  | $$| $$__/ $$|  \__| $$
+# | $$  | $$| $$    $$ \$$    $$
+#  \$$   \$$ \$$$$$$$   \$$$$$$ 
+   
+  #                            
+  # Create Resources that might help when using RDS
+  #
+                              
+  # Make it so anything in this security group can access the DB servers.
+  DBInboundRule1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseWithRDS
+    # For MySQL 
+    Properties:
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      GroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+
+  DBInboundRule2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseWithRDS
+    # For Postgresql
+    Properties:
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      GroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+        
+  DBInboundRule3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseWithRDS
+    # For DocumentDB
+    Properties:
+      IpProtocol: tcp
+      FromPort: 27017
+      ToPort: 27017
+      GroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+
+  DBInboundRule4:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseWithRDS
+    # For Neptune
+    Properties:
+      IpProtocol: tcp
+      FromPort: 8182
+      ToPort: 8182
+      GroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+
+  DBInboundRule5:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseWithRDS
+    # For Redshift
+    Properties:
+      IpProtocol: tcp
+      FromPort: 5439
+      ToPort: 5439
+      GroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Condition: UseWithRDS
+    Properties:
+      DBSubnetGroupDescription: "DB Subnet Group"
+      SubnetIds:
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+        - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
+
+#  ________  __    __  _______   _______    ______   ______  __    __ ________   ______  
+# |        \|  \  |  \|       \ |       \  /      \ |      \|  \  |  \        \ /      \ 
+# | $$$$$$$$| $$\ | $$| $$$$$$$\| $$$$$$$\|  $$$$$$\ \$$$$$$| $$\ | $$\$$$$$$$$|  $$$$$$\
+# | $$__    | $$$\| $$| $$  | $$| $$__/ $$| $$  | $$  | $$  | $$$\| $$  | $$   | $$___\$$
+# | $$  \   | $$$$\ $$| $$  | $$| $$    $$| $$  | $$  | $$  | $$$$\ $$  | $$    \$$    \ 
+# | $$$$$   | $$\$$ $$| $$  | $$| $$$$$$$ | $$  | $$  | $$  | $$\$$ $$  | $$    _\$$$$$$\
+# | $$_____ | $$ \$$$$| $$__/ $$| $$      | $$__/ $$ _| $$_ | $$ \$$$$  | $$   |  \__| $$
+# | $$     \| $$  \$$$| $$    $$| $$       \$$    $$|   $$ \| $$  \$$$  | $$    \$$    $$
+#  \$$$$$$$$ \$$   \$$ \$$$$$$$  \$$        \$$$$$$  \$$$$$$ \$$   \$$   \$$     \$$$$$$ 
+                                                                                       
+                                                                                       
+  VPCS3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    # Required for Neptune to be able to load data from S3.
+    Properties:
+      # This is a GATEWAY endpoint
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable01
+        - !Ref PrivateRouteTable02
+        - !If [CreateThirdAZ, !Ref PrivateRouteTable03, !Ref AWS::NoValue]
+          
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPC
+
+Outputs:
+      
+  VpcId:
+    Description: The VPC Id
+    Value: !Ref VPC
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "VpcId"]]
+
+  PublicSubnetIds:
+    Description: PUBLIC Subnets IDs in the VPC.  Comma delimited list
+    Value: !Join [ ",", [ !Ref PublicSubnet01, !Ref PublicSubnet02, !If [ CreateThirdAZ, !Ref PublicSubnet03, !Ref AWS::NoValue ] ] ]
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnetIds"]]
+
+  PrivateSubnetIds:
+    Description: PRIVATE Subnets IDs in the VPC.  Comma delimited list
+    Value: !Join [ ",", [ !Ref PrivateSubnet01, !Ref PrivateSubnet02, !If [CreateThirdAZ, !Ref PrivateSubnet03 , !Ref AWS::NoValue ] ] ]
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetIds"]]
+
+  PrivateSubnet1:
+    Description: Private Subnet1 ID in the VPC
+    Value: !Ref PrivateSubnet01
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnet01"]]
+    
+  PrivateSubnet2:
+    Description: Private Subnet2 ID in the VPC
+    Value: !Ref PrivateSubnet02
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnet02"]]
+
+  PrivateSubnet3:
+    Description: Private Subnet3 ID in the VPC
+    Value: !Ref PrivateSubnet03
+    Condition: CreateThirdAZ
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnet03"]]
+
+  DBSecurityGroup:
+    Condition: UseWithRDS
+    Description: Security group for the databases.
+    Value: !Join [ ",", [ !Ref DBSecurityGroup ] ]
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "DBSecurityGroup"]]
+      
+  DBSubnetGroup:
+    Condition: UseWithRDS
+    Description: "DB Subnet group containing all the private subnets."
+    Value: !Ref DBSubnetGroup
+    Export:
+      Name: !Join ["-", [!Ref Prefix, "DBSubnetGroup"]]

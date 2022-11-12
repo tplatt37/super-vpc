@@ -31,8 +31,8 @@ Parameters:
 
   Prefix:
     Type: String
-    Default: demo-super
-    Description: "A Prefix to use on the resource names and exports (To ensure uniqueness). For example, the VPC will be named: demo-super-vpc"
+    Default: demo
+    Description: "A Prefix to use on the resource names and exports (To ensure uniqueness). For example, the VPC will be named: demo-vpc"
 
   VpcBlock:
     Type: String
@@ -81,7 +81,6 @@ Parameters:
     AllowedValues: ["True","False"]
     Description: "Set to True if you plan to use this VPC with RDS Service - this will create a DB Subnet Group and a Security Group with common Database Ports open."
 
-
 Conditions:
 
   # Using a Third AZ is optional. You'll need 3 available EIP to setup a 3 AZ VPC...
@@ -106,6 +105,7 @@ Metadata:
         Parameters:
           - VpcBlock
           - UseThirdAZ
+          - UseWithRDS
           - PublicSubnet01Block
           - PublicSubnet02Block
           - PublicSubnet03Block
@@ -451,12 +451,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet03
       RouteTableId: !Ref PrivateRouteTable03
 
-  DBSecurityGroup: 
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: DB Security Group for all databases
-      VpcId: !Ref VPC
-
 #  _______   _______    ______  
 # |       \ |       \  /      \ 
 # | $$$$$$$\| $$$$$$$\|  $$$$$$\
@@ -470,6 +464,12 @@ Resources:
   #                            
   # Create Resources that might help when using RDS
   #
+
+  DBSecurityGroup: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DB Security Group for all databases
+      VpcId: !Ref VPC
                               
   # Make it so anything in this security group can access the DB servers.
   DBInboundRule1:
@@ -577,7 +577,6 @@ Resources:
 # | $$     \| $$  \$$$| $$    $$| $$       \$$    $$|   $$ \| $$  \$$$  | $$    \$$    $$
 #  \$$$$$$$$ \$$   \$$ \$$$$$$$  \$$        \$$$$$$  \$$$$$$ \$$   \$$   \$$     \$$$$$$ 
                                                                                        
-                                                                                       
   VPCS3Endpoint:
     Type: AWS::EC2::VPCEndpoint
     # Required for Neptune to be able to load data from S3.
@@ -592,6 +591,49 @@ Resources:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcId: !Ref VPC
 
+#  ________  __       ______   __       __        __       ______    ______    ______  
+# |        \|  \     /      \ |  \  _  |  \      |  \     /      \  /      \  /      \ 
+# | $$$$$$$$| $$    |  $$$$$$\| $$ / \ | $$      | $$    |  $$$$$$\|  $$$$$$\|  $$$$$$\
+# | $$__    | $$    | $$  | $$| $$/  $\| $$      | $$    | $$  | $$| $$ __\$$| $$___\$$
+# | $$  \   | $$    | $$  | $$| $$  $$$\ $$      | $$    | $$  | $$| $$|    \ \$$    \ 
+# | $$$$$   | $$    | $$  | $$| $$ $$\$$\$$      | $$    | $$  | $$| $$ \$$$$ _\$$$$$$\
+# | $$      | $$____| $$__/ $$| $$$$  \$$$$      | $$____| $$__/ $$| $$__| $$|  \__| $$
+# | $$      | $$     \$$    $$| $$$    \$$$      | $$     \$$    $$ \$$    $$ \$$    $$
+#  \$$       \$$$$$$$$\$$$$$$  \$$      \$$       \$$$$$$$$\$$$$$$   \$$$$$$   \$$$$$$ 
+
+  VPCFlowLogs:
+    Type: AWS::EC2::FlowLog
+    Properties: 
+      # Import the Bucket ARN created in the logging bucket stack
+      LogDestination: !Join
+        - '/'
+        - - Fn::ImportValue:
+              !Join
+                - "-"
+                - - !Ref Prefix
+                  - "LoggingBucket"
+      LogDestinationType: s3
+      MaxAggregationInterval: 60
+      # Flow Logs can be NetworkInterface, Subnet, TransitGateway, VPC, etc.
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL
+      Tags: 
+        - Key: demo
+          Value: !Ref Prefix
+  
+
+
+#   ______   __    __ ________  _______   __    __ ________   ______  
+#  /      \ |  \  |  \        \|       \ |  \  |  \        \ /      \ 
+# |  $$$$$$\| $$  | $$\$$$$$$$$| $$$$$$$\| $$  | $$\$$$$$$$$|  $$$$$$\
+# | $$  | $$| $$  | $$  | $$   | $$__/ $$| $$  | $$  | $$   | $$___\$$
+# | $$  | $$| $$  | $$  | $$   | $$    $$| $$  | $$  | $$    \$$    \ 
+# | $$  | $$| $$  | $$  | $$   | $$$$$$$ | $$  | $$  | $$    _\$$$$$$\
+# | $$__/ $$| $$__/ $$  | $$   | $$      | $$__/ $$  | $$   |  \__| $$
+#  \$$    $$ \$$    $$  | $$   | $$       \$$    $$  | $$    \$$    $$
+#   \$$$$$$   \$$$$$$    \$$    \$$        \$$$$$$    \$$     \$$$$$$ 
+                                                                    
 Outputs:
       
   VpcId:

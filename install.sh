@@ -17,12 +17,23 @@ echo "VPC will be setup in $REGION..."
 PREFIX=$1
 echo "All stack names will be prefixed with $PREFIX..."
 
+STACK_NAME=$PREFIX-logging
+aws cloudformation deploy --template-file bucket.yaml \
+ --stack-name $STACK_NAME --capabilities CAPABILITY_NAMED_IAM
+aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
+echo "$STACK_NAME is ready."
+
+exit
+
+STACK_NAME=$PREFIX-vpc
 aws cloudformation deploy \
   --template-file vpc-multi-az.yaml \
   --parameter-overrides Prefix=$PREFIX UseThirdAZ=True UseWithRDS=True \
-  --stack-name "$PREFIX-vpc"
+  --stack-name "$STACK_NAME"
+echo "$STACK_NAME is ready."
 
 echo "Done."
+
 
 
 exit

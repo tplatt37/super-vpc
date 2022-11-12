@@ -1,0 +1,134 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+#  __       ______    ______    ______   ______  __    __   ______         _______   __    __   ______   __    __  ________ ________ 
+# |  \     /      \  /      \  /      \ |      \|  \  |  \ /      \       |       \ |  \  |  \ /      \ |  \  /  \|        \        \
+# | $$    |  $$$$$$\|  $$$$$$\|  $$$$$$\ \$$$$$$| $$\ | $$|  $$$$$$\      | $$$$$$$\| $$  | $$|  $$$$$$\| $$ /  $$| $$$$$$$$\$$$$$$$$
+# | $$    | $$  | $$| $$ __\$$| $$ __\$$  | $$  | $$$\| $$| $$ __\$$      | $$__/ $$| $$  | $$| $$   \$$| $$/  $$ | $$__      | $$   
+# | $$    | $$  | $$| $$|    \| $$|    \  | $$  | $$$$\ $$| $$|    \      | $$    $$| $$  | $$| $$      | $$  $$  | $$  \     | $$   
+# | $$    | $$  | $$| $$ \$$$$| $$ \$$$$  | $$  | $$\$$ $$| $$ \$$$$      | $$$$$$$\| $$  | $$| $$   __ | $$$$$\  | $$$$$     | $$   
+# | $$____| $$__/ $$| $$__| $$| $$__| $$ _| $$_ | $$ \$$$$| $$__| $$      | $$__/ $$| $$__/ $$| $$__/  \| $$ \$$\ | $$_____   | $$   
+# | $$     \$$    $$ \$$    $$ \$$    $$|   $$ \| $$  \$$$ \$$    $$      | $$    $$ \$$    $$ \$$    $$| $$  \$$\| $$     \  | $$   
+#  \$$$$$$$$\$$$$$$   \$$$$$$   \$$$$$$  \$$$$$$ \$$   \$$  \$$$$$$        \$$$$$$$   \$$$$$$   \$$$$$$  \$$   \$$ \$$$$$$$$   \$$   
+                                                                                                                                   
+
+Description: |
+  An S3 Bucket that is perfect for logging from a VPC: Flow Logs, ELB Access Logs, etc.
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Default: demo
+    Description: "A Prefix to use on the resource names and exports (To ensure uniqueness)."
+
+Mappings:
+
+  RegionalConfigs:
+    # Accounts needed to grant access for ELB access logging
+    # as per: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
+    us-east-1:
+      ELBAccountId: '127311923021'
+    us-east-2:
+      ELBAccountId: '033677994240'
+    us-west-2:
+      ELBAccountId: '797873946194'
+    ca-central-1:
+      ELBAccountId: '985666609251'
+
+Resources:
+
+  # The Logging Bucket. We don't name this - easier to let CFN pick the name (for uniqueness!)
+  LoggingBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      Tags:
+        - Key: demo
+          Value: !Ref Prefix
+          
+  LoggingBucketPolicyELB:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref LoggingBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        
+         # Policy for ELB access logs 
+         # as per: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
+        Statement:
+          - Sid: "ELBAccessLogsPut"
+            Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref LoggingBucket
+                - '/*'
+            Principal:
+              AWS: !Join
+                - ''
+                - - 'arn:aws:iam::'
+                  - !FindInMap [ "RegionalConfigs", !Ref "AWS::Region", "ELBAccountId"]
+                  - ':root'
+            
+          # Bucket Policy for VPC Flow Logs, as per:
+          # https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-s3.html#flow-logs-s3-permissions 
+          # https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-s3.html#flow-logs-s3-iam
+          - Sid: AWSFlowLogDeliveryWrite
+            Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref LoggingBucket
+                - '/*'
+            Principal:
+              Service: "delivery.logs.amazon.com"
+            Condition:
+              # These are a best practice to prevent the Confused Deputy Problem
+              # https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html
+              StringEquals:
+                - "aws:SourceAccount": !Ref "AWS::AccountId"
+                - "s3:x-amz-acl": "bucket-owner-full-control"
+              ArnLike:
+                "aws:SourceArn": !Join
+                  - ":"
+                  - - "arn:aws:logs"
+                    - !Ref "AWS::Region"
+                    - !Ref "AWS::AccountId"
+                    - "*"
+          - Sid: AWSFlowLogDeliveryAclCheck
+            Action:
+              - 's3:GetBucketAcl'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref LoggingBucket
+                - '/*'
+            Principal:
+              Service: "delivery.logs.amazon.com"
+            Condition:
+              StringEquals:
+                - "aws:SourceAccount": !Ref "AWS::AccountId"
+              ArnLike:
+                "aws:SourceArn": !Join
+                  - ":"
+                  - - "arn:aws:logs"
+                    - !Ref "AWS::Region"
+                    - !Ref "AWS::AccountId"
+                    - "*"
+
+Outputs:
+
+  LoggingBucket:
+    Description: Where the vpc flow logs and other logs (elb access logs) etc. can go.
+    Value: !Ref LoggingBucket
+    Export:
+      Name: !Join ['-', [ !Ref Prefix, 'LoggingBucket']]

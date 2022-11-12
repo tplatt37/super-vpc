@@ -49,23 +49,26 @@ fi
 
 echo "OK... here we go..."
 
+# Get the artifacts bucket from the Pipeline stack
+BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-LoggingBucket'].Value" --output text)
+
+# Empty the utility bucket (Otherwise stack delete will fail)
+echo "Will empty bucket $BUCKET - to prevent stack delete from failing..."
+aws s3 rm s3://$BUCKET --recursive
 
 STACK_NAME=$PREFIX-vpc
 echo "Deleting ($STACK_NAME) ..."
 aws cloudformation delete-stack --stack-name $STACK_NAME
 aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME 
 
+STACK_NAME=$PREFIX-logging
+echo "Deleting ($STACK_NAME) ..."
+aws cloudformation delete-stack --stack-name $STACK_NAME
+aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME 
 
 
 exit
 
-
-# Get the artifacts bucket from the Pipeline stack
-UTILITY_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-UtilityBucket'].Value" --output text)
-
-# Empty the utility bucket (Otherwise stack delete will fail)
-echo "Will empty bucket $UTILITY_BUCKET - to prevent stack delete from failing..."
-aws s3 rm s3://$UTILITY_BUCKET --recursive
 
 # Find the Node Instance Role and remove any manually attached policies (otherwise stack delete will fail)
 NODE_INSTANCE_ROLE=$(aws cloudformation describe-stack-resources --stack-name "eksctl-$PREFIX-nodegroup-nodes" --query "StackResources[?LogicalResourceId=='NodeInstanceRole'].PhysicalResourceId" --output text)

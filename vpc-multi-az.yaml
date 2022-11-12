@@ -579,7 +579,7 @@ Resources:
                                                                                        
   VPCS3Endpoint:
     Type: AWS::EC2::VPCEndpoint
-    # Required for Neptune to be able to load data from S3.
+    # An S3 Gateway Endpoint
     Properties:
       # This is a GATEWAY endpoint
       RouteTableIds:
@@ -590,6 +590,111 @@ Resources:
           
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcId: !Ref VPC
+
+  VPCDDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    # An DynamoDB Gateway Endpoint
+    Properties:
+      # This is a GATEWAY endpoint
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable01
+        - !Ref PrivateRouteTable02
+        - !If [CreateThirdAZ, !Ref PrivateRouteTable03, !Ref AWS::NoValue]
+          
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcId: !Ref VPC
+
+#   ______    ______   __       __ 
+#  /      \  /      \ |  \     /  \
+# |  $$$$$$\|  $$$$$$\| $$\   /  $$
+# | $$___\$$| $$___\$$| $$$\ /  $$$
+#  \$$    \  \$$    \ | $$$$\  $$$$
+#  _\$$$$$$\ _\$$$$$$\| $$\$$ $$ $$
+# |  \__| $$|  \__| $$| $$ \$$$| $$
+#  \$$    $$ \$$    $$| $$  \$ | $$
+#   \$$$$$$   \$$$$$$  \$$      \$$
+
+#
+# SSM requires several Interface Endpoints for full functionaliy
+# We use this only for the Private Subnets
+# There is a NAT Gateway on the private subnets, but this keeps the traffic
+# off the "Internet"
+# You can also delete the NAT GW Route in the Route Table, and this will still 
+# allow access to SSM.
+#
+
+  SSMEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcId:
+        Ref: VPC
+      SecurityGroupIds:
+        - Ref: SSMSecurityGroup
+      ServiceName:
+        'Fn::Sub': 'com.amazonaws.${AWS::Region}.ssm'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Ref: PrivateSubnet01
+        - Ref: PrivateSubnet02
+        - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
+        
+  SSMEc2MessagesEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcId:
+        Ref: VPC
+      SecurityGroupIds:
+        - Ref: SSMSecurityGroup
+      ServiceName:
+        'Fn::Sub': 'com.amazonaws.${AWS::Region}.ec2messages'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Ref: PrivateSubnet01
+        - Ref: PrivateSubnet02
+        - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
+       
+  SSMMessagesEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcId:
+        Ref: VPC
+      SecurityGroupIds:
+        - Ref: SSMSecurityGroup
+      ServiceName:
+        'Fn::Sub': 'com.amazonaws.${AWS::Region}.ssmmessages'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Ref: PrivateSubnet01
+        - Ref: PrivateSubnet02
+        - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
+
+  # Place any EC2 instances into this group, so they have access to SSM.
+  SSMSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable access to SSM
+      VpcId:
+        Ref: VPC
+  
+  # Let everything in this group talk back and forth
+  # Everything = The ENIs for the EC2 instances and the SSM Interface Endpoints
+  SSMInboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !GetAtt SSMSecurityGroup.GroupId
+      GroupId: !GetAtt SSMSecurityGroup.GroupId
+  
+  #
+  # There will be All Outbound Allowed rule automatically!
+  #
+  
 
 #  ________  __       ______   __       __        __       ______    ______    ______  
 # |        \|  \     /      \ |  \  _  |  \      |  \     /      \  /      \  /      \ 
@@ -622,7 +727,6 @@ Resources:
         - Key: demo
           Value: !Ref Prefix
   
-
 
 #   ______   __    __ ________  _______   __    __ ________   ______  
 #  /      \ |  \  |  \        \|       \ |  \  |  \        \ /      \ 

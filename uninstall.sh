@@ -61,6 +61,12 @@ BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-Loggin
 echo "Will empty bucket $BUCKET - to prevent stack delete from failing..."
 aws s3 rm s3://$BUCKET --recursive
 
+# Athena stack may not exist - that's OK
+STACK_NAME=$PREFIX-athena-query
+echo "Deleting ($STACK_NAME) ..."
+aws cloudformation delete-stack --stack-name $STACK_NAME
+aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME
+
 STACK_NAME=$PREFIX-vpc
 echo "Deleting ($STACK_NAME) ..."
 aws cloudformation delete-stack --stack-name $STACK_NAME

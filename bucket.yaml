@@ -50,7 +50,7 @@ Resources:
         - Key: demo
           Value: !Ref Prefix
           
-  LoggingBucketPolicyELB:
+  LoggingBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties: 
       Bucket: !Ref LoggingBucket
@@ -61,9 +61,8 @@ Resources:
          # as per: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
         Statement:
           - Sid: "ELBAccessLogsPut"
-            Action:
-              - 's3:PutObject'
             Effect: Allow
+            Action: 's3:PutObject'
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
@@ -80,22 +79,21 @@ Resources:
           # https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-s3.html#flow-logs-s3-permissions 
           # https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-s3.html#flow-logs-s3-iam
           - Sid: AWSFlowLogDeliveryWrite
-            Action:
-              - 's3:PutObject'
             Effect: Allow
+            Action: 's3:PutObject'
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
                 - !Ref LoggingBucket
                 - '/*'
             Principal:
-              Service: "delivery.logs.amazon.com"
+              Service: "delivery.logs.amazonaws.com"
             Condition:
               # These are a best practice to prevent the Confused Deputy Problem
               # https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html
               StringEquals:
-                - "aws:SourceAccount": !Ref "AWS::AccountId"
-                - "s3:x-amz-acl": "bucket-owner-full-control"
+                'aws:SourceAccount': !Ref "AWS::AccountId"
+                's3:x-amz-acl': "bucket-owner-full-control"
               ArnLike:
                 "aws:SourceArn": !Join
                   - ":"
@@ -103,27 +101,41 @@ Resources:
                     - !Ref "AWS::Region"
                     - !Ref "AWS::AccountId"
                     - "*"
+                    
           - Sid: AWSFlowLogDeliveryAclCheck
-            Action:
-              - 's3:GetBucketAcl'
+            Action: 's3:GetBucketAcl'
             Effect: Allow
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
                 - !Ref LoggingBucket
-                - '/*'
             Principal:
-              Service: "delivery.logs.amazon.com"
+              Service: "delivery.logs.amazonaws.com"
             Condition:
               StringEquals:
-                - "aws:SourceAccount": !Ref "AWS::AccountId"
+                'aws:SourceAccount': !Ref "AWS::AccountId"
               ArnLike:
-                "aws:SourceArn": !Join
+                'aws:SourceArn': !Join
                   - ":"
                   - - "arn:aws:logs"
                     - !Ref "AWS::Region"
                     - !Ref "AWS::AccountId"
                     - "*"
+                    
+          # No HTTP allowed!  (Certain services like S3, SQS, DynamoDB support HTTP!)
+          - Sid: DenyInsecureConnections
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: !Join 
+              - ''
+              - - !GetAtt 
+                  - LoggingBucket
+                  - Arn
+                - "/*"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
 
 Outputs:
 

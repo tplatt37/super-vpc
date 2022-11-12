@@ -19,6 +19,7 @@ echo "All stack names will be prefixed with $PREFIX..."
 
 STACK_NAME=$PREFIX-logging
 aws cloudformation deploy --template-file bucket.yaml \
+ --parameter-overrides Prefix=$PREFIX \
  --stack-name $STACK_NAME --capabilities CAPABILITY_NAMED_IAM
 aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
 echo "$STACK_NAME is ready."

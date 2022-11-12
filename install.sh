@@ -24,8 +24,6 @@ aws cloudformation deploy --template-file bucket.yaml \
 aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
 echo "$STACK_NAME is ready."
 
-exit
-
 STACK_NAME=$PREFIX-vpc
 aws cloudformation deploy \
   --template-file vpc-multi-az.yaml \

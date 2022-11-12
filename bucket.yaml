@@ -140,7 +140,13 @@ Resources:
 Outputs:
 
   LoggingBucket:
-    Description: Where the vpc flow logs and other logs (elb access logs) etc. can go.
+    Description: This is the bucket Name. Where the vpc flow logs and other logs (elb access logs) etc. can go.
     Value: !Ref LoggingBucket
     Export:
       Name: !Join ['-', [ !Ref Prefix, 'LoggingBucket']]
+
+  LoggingBucketArn:
+    Description: This is the bucket Arn. Where the vpc flow logs and other logs (elb access logs) etc. can go.
+    Value: !GetAtt LoggingBucket.Arn
+    Export:
+      Name: !Join ['-', [ !Ref Prefix, 'LoggingBucketArn']]

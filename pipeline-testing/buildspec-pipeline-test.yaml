@@ -5,8 +5,7 @@ phases:
     runtime-versions:
       docker: 19
     commands:
-      - PREFIX=zzz-super-vpc
-      - TARGET_PREFIX=super-vpc
+      - TARGET_PREFIX=zzz-super-vpc
       
       # Gotta install AWS CLI v2
       - pip3 uninstall awscli -y
@@ -24,6 +23,10 @@ phases:
      
   build:
     commands:
+    
+      # Set this in CodeBuild Environment Variable
+      - echo $AWS_DEFAULT_REGION
+      
       # Run the install
       - ./install.sh "$TARGET_PREFIX"
       
@@ -34,10 +37,11 @@ phases:
       # Count ENIs
       - VPCID=$(aws cloudformation list-exports --query "Exports[?Name=='$TARGET_PREFIX-VpcId'].Value" --output text)
       - echo "VPCID=$VPCID"
-      - ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" | grep "\"\"" | wc -l)
+      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" 
+      - ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" | grep '""' | wc -l)
       - echo "ENI_COUNT=$ENI_COUNT"
       
-      - aws ec2 describe-network-interaces --filter Name=vpc-id,Values=$VPCID > report.txt
+      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID > report.txt
       
       # There should be 12 ENIs (NAT GW and VPC Interface Endpoint)
       - if [ $ENI_COUNT -neq 12 ]; then echo "Less than 12 ENIs - something wrong?... exiting..."; exit 1; fi

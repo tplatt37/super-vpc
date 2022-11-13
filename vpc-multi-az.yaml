@@ -632,8 +632,8 @@ Resources:
 
 #
 # SSM requires several Interface Endpoints for full functionality
-# We use this only for the Private Subnets
-# There is a NAT Gateway on the private subnets, but this keeps the traffic
+# We associate these with the Private Subnets. (You are only allowed 1 interface per AZ.)
+# There is a NAT Gateway for each of the private subnets, but this keeps the traffic
 # off the "Internet"
 # You can also delete the NAT GW Route in the Route Table, and this will still 
 # allow access to SSM.
@@ -687,7 +687,7 @@ Resources:
         - Ref: PrivateSubnet02
         - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
 
-  # Place any EC2 instances into this group, so they have access to SSM.
+  # An Security Group for the Interface Endpoints
   SSMSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -697,6 +697,7 @@ Resources:
   
   # Let everything in this group talk back and forth
   # Everything = The ENIs for the EC2 instances and the SSM Interface Endpoints
+  # TODO: I don't think we need this rule. The CIDR rule below takes care of anything.
   SSMInboundRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -704,6 +705,18 @@ Resources:
       FromPort: -1
       ToPort: -1
       SourceSecurityGroupId: !GetAtt SSMSecurityGroup.GroupId
+      GroupId: !GetAtt SSMSecurityGroup.GroupId
+
+  # Let everything in the VPC CIDR use 443 - so machines in the private or public subnets can contact SSM.
+  # Interface Endpoints rely on private DNS names, so the machines in public will also (there's ONE dns per VPC)
+  # try to contact the VPC Interface Endpoints (which are an ENI in the Private subnet)
+  SSMInboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !GetAtt VPC.CidrBlock
       GroupId: !GetAtt SSMSecurityGroup.GroupId
   
   #

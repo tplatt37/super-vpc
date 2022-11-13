@@ -71,7 +71,8 @@ aws cloudformation create-stack \
     --capabilities CAPABILITY_IAM \
     --template-body file://athena.yml \
 
+echo "Once the cloudformation template completes..."
 echo "1. Go to Athena, look for a table with VPCFlowLogs in the name, try Preview Table"
-ehco "2. Look for a new Workgroup. There are Saved queries, including a Top Talkers report, etc."
+echo "2. Look for a new Workgroup. There are Saved queries, including a Top Talkers report, etc."
 
 echo "Done."

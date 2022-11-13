@@ -49,17 +49,46 @@ fi
 
 echo "OK... here we go..."
 
+# Are there ENIs other than the NAT Gateways and Interface Endpoints?
+# If so, you probably need to get rid of those resources first...
+# This is not definitive, but it's better than nothing.
+
+VPCID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-VpcId'].Value" --output text)
+echo "VPCID=$VPCID"
+# TODO - Count up interfaces - warn the user.
+#aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID
+#
+ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" | grep "\"\"" | wc -l)
+
+if [[ $ENI_COUNT > 0 ]]; then
+    
+    echo "It appears there are $ENI_COUNT ENI(s) in this VPC that need to be handled before uninstalling..."
+    aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].[Description, InterfaceType]" 
+    echo "Uninstall canceled..."
+    exit 1
+    
+fi
+
+
 # Disable Flow Logs first, so we stop putting things in the S3 bucket 
 FLOW_LOG_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-FlowLogId'].Value" --output text)
-echo "FLOW_LOG_ID=$FLOW_LOG_ID."
+echo "FLOW_LOG_ID=$FLOW_LOG_ID"
 aws ec2 delete-flow-logs --flow-log-ids $FLOW_LOG_ID
 
 # Get the artifacts bucket from the Logging stack
 BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-LoggingBucket'].Value" --output text)
+echo "BUCKET=$BUCKET"
 
 # Empty the utility bucket (Otherwise stack delete will fail)
 echo "Will empty bucket $BUCKET - to prevent stack delete from failing..."
 aws s3 rm s3://$BUCKET --recursive
+
+# For the Athena, we have to do a forced delete.
+WORKGROUP=$(aws athena list-work-groups --query "WorkGroups[?Description=='This workgroup has the queries related to vpc flow logs.'].Name" --output text)
+echo "WORKGROUP=$WORKGROUP"
+
+# This is like a force delete. Otherwise the CFN stack delete will fail...
+aws athena delete-work-group --work-group $WORKGROUP --recursive-delete-option
 
 # Athena stack may not exist - that's OK
 STACK_NAME=$PREFIX-athena-query

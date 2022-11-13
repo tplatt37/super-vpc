@@ -36,21 +36,18 @@ TARGET_VPC_ID=$5
 echo "Checking for Cloud9/EC2 Instance $INSTANCE_ID in Region $C9_REGION"
 
 
-#PRIVATE_IP_ADDRESS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PrivateIpAddress" --output text --region $C9_REGION)
-#echo "PRIVATE_IP_ADDRESS=$PRIVATE_IP_ADDRESS"
-
-
 TARGET_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $TARGET_VPC_ID --query ["Vpcs[*].CidrBlock"] --output text)
 echo "TARGET_VPC_CIDR_BLOCK=$TARGET_VPC_CIDR_BLOCK"
 
 # Peering from the VPC / REGION Cloud9 is in to the VPC / REGION that the databases are in.
-# NOTE: Big assumption that you have your AWS CLI pointed to the REGION with the TARGET VPC!
 #
-PEERING_ID=$(aws ec2 create-vpc-peering-connection --region $C9_REGION --vpc-id $C9_VPC_ID --peer-vpc-id $TARGET_VPC_ID --peer-region $TARGET_REGION --output text --query "VpcPeeringConnection.VpcPeeringConnectionId")
+PEERING_ID=$(aws ec2 create-vpc-peering-connection --region $C9_REGION --vpc-id $C9_VPC_ID --peer-vpc-id $TARGET_VPC_ID --peer-region $TARGET_REGION --tag-specifications "ResourceType=vpc-peering-connection,Tags=[{Key=demo,Value=test}]" --output text --query "VpcPeeringConnection.VpcPeeringConnectionId")
+  
 echo "PEERING_ID=$PEERING_ID"
 
-# Give it just a moment before waiting for it...
-sleep 5
+# Give it just a moment before waiting for it...it's flaky
+echo "Sleep 30 seconds, wait for VPC peering to be Active..."
+sleep 30
 
 echo "Gonna wait for the VPC peering connection to come into existence..."
 aws ec2 wait vpc-peering-connection-exists --vpc-peering-connection-id $PEERING_ID --region $C9_REGION
@@ -58,7 +55,7 @@ aws ec2 wait vpc-peering-connection-exists --vpc-peering-connection-id $PEERING_
 echo "Accepting VPC Peering connection..."
 aws ec2 accept-vpc-peering-connection --vpc-peering-connection-id $PEERING_ID --region $TARGET_REGION
 
-echo "Sleep 30 seconds, wait for VPC peering to be Active..."
+echo "Sleep 30 seconds (again) wait for VPC peering acceptance..."
 sleep 30
 
 echo "Modifying VPC Peering Connection to allow DNS Name Resolution ... both ways."

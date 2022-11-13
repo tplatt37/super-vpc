@@ -1,49 +1,57 @@
 #!/bin/bash
 
-# This is called by peer.sh
-# You probably shouldn't be running this manually...
-# You must pass in the PREFIX (resource name prefix), PEERING CONNECTION ID, INSTANCE ID, and REGION 
-
 if [ -z $1 ]; then
-        echo "Need to know the PREFIX created previously.... Exiting..."
-        exit 0
+        echo "Must pass in the unique Prefix Name that was used as a prefix for resource naming... Exiting..."
+        exit 1
 fi
 PREFIX=$1
 
 if [ -z $2 ]; then
-        echo "Need to know the PEERING CONNECTION ID created previously.... Exiting..."
-        exit 0
+        echo "Must pass in the C9_REGION - where the Cloud9 or EC2 instance resides... Exiting..."
+        exit 1
 fi
-PEERING_ID=$2
+C9_REGION=$2
 
 if [ -z $3 ]; then
-        echo "Need to know the INSTANCE ID of the C9 or EC2 instance... Exiting..."
-        exit 0
+        echo "Must pass in the C9_VPC_ID - of the Cloud9 or EC2 instance... Exiting..."
+        exit 1
 fi
-INSTANCE_ID=$3
+C9_VPC_ID=$3
 
 if [ -z $4 ]; then
-        echo "Need to know the REGION of the C9 or EC2 instance... Exiting..."
-        exit 0
+        echo "Must pass in the TARGET_REGION - where the Target Resource resides... Exiting..."
+        exit 1
 fi
-C9_REGION=$4
+TARGET_REGION=$4
 
-# REGION is where the Target is.
-REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+if [ -z $5 ]; then
+        echo "Must pass in the TARGET_VPC_ID - where the Target Resource resides... Exiting..."
+        exit 1
+fi
+TARGET_VPC_ID=$6
 
-echo "Checking for Cloud9/EC2 Instance $INSTANCE_ID in Region $C9_REGION"
+if [ -z $6 ]; then
+        echo "Must pass in the INSTANCE_ID ... Exiting..."
+        exit 1
+fi
+INSTANCE_ID=$6
 
-TARGET_VPC_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-VpcId'].Value" --output text)
-echo "TARGET_VPC_ID=$TARGET_VPC_ID"
+
+if [ -z $7 ]; then
+        echo "Must pass in the PEERING_ID - of the peering connection... Exiting..."
+        exit 1
+fi
+PEERING_ID=$7
+
+echo "PEERING_ID=$PEERING_ID"
+echo "INSTANCE_ID=$INSTANCE_ID"
+
 
 TARGET_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $TARGET_VPC_ID --query ["Vpcs[*].CidrBlock"] --output text)
 echo "TARGET_VPC_CIDR_BLOCK=$TARGET_VPC_CIDR_BLOCK"
 
-C9_VPC_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].VpcId" --output text --region $C9_REGION)
-echo "VPC_ID for the Cloud9 instance is $C9_VPC_ID."
-
-PRIVATE_IP_ADDRESS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PrivateIpAddress" --output text --region $C9_REGION)
-echo "PRIVATE_IP_ADDRESS for the Cloud9 instance is $PRIVATE_IP_ADDRESS."
+#PRIVATE_IP_ADDRESS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PrivateIpAddress" --output text --region $C9_REGION)
+#echo "PRIVATE_IP_ADDRESS for the Cloud9 instance is $PRIVATE_IP_ADDRESS."
 
 C9_SUBNET_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].SubnetId" --output text --region $C9_REGION)
 echo "SUBNET_ID=$C9_SUBNET_ID"
@@ -67,6 +75,8 @@ echo "C9_CIDR_BLOCK (Subnet)=$C9_CIDR_BLOCK"
 
 C9_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $C9_VPC_ID --region $C9_REGION --query ["Vpcs[*].CidrBlock"] --output text)
 echo "C9_VPC_CIDR_BLOCK (VP)=$C9_VPC_CIDR_BLOCK"
+
+exit
 
 
 # Deal with the destination route tables first.

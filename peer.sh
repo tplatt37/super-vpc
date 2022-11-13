@@ -70,6 +70,12 @@ echo "TARGET_VPC_ID=$TARGET_VPC_ID"
 
 ./netw-01-peer.sh $PREFIX $C9_REGION $C9_VPC_ID $TARGET_REGION $TARGET_VPC_ID
 
-#./routes.sh $PREFIX $PEERING_ID $INSTANCE_ID $C9_REGION
+# Get the PEERING_ID that was just created.
+# seems like --tag-specifications doesn't work
+# how to do this ? Without resorting to global environment variables? 
+
+exit 0
+
+./netw-02-routes.sh $PREFIX $C9_REGION $C9_VPC_ID $TARGET_REGION $TARGET_VPC_ID $INSTANCE_ID $PEERING_ID
 
 exit 0

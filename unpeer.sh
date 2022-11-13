@@ -1,0 +1,211 @@
+#!/bin/bash
+# Run this on a Cloud9 instance to get UN-Peered to the VPC the Target Resource is in.
+#
+# This basically UNDOES what peer.sh deos.
+#
+# Removes the Routing Table entries that were added for peering (from both sides)
+# Removes the DB Security Group ingress rules that were added to allow traffic from C9
+# Removes the Peering Connection.
+#
+#
+
+if [ -z $1 ]; then
+        echo "Must pass in the unique PREFIX that was used for resource naming... Exiting..."
+        exit 1
+fi
+PREFIX=$1
+
+# This is the REGION where the VPC is.
+TARGET_REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+
+# IMPORTANT
+# REGION is the REGION the Databases are in
+# C9_REGION is the REGION that the EC2 / C9 Instance is in.
+#
+#
+
+# OPTIONAL: You can provide the EC2 INSTANCE_ID that you want to be able to use to connect to the databases.
+# It's easier if you just run this command from the C9/EC2 instance...
+# If you pass in an INSTANCE_ID you also need to pass in the REGION.
+
+if [ -z $2 ]; then
+    read -p "Are you running this on the Cloud9 or EC2 instance that you wish to UNPEER? (Yy) " -n 1 -r
+    echo    # (optional) move to a new line
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Well... I need you to give me the INSTANCE ID and REGION as parameters, please!"
+        exit 1
+    fi
+    
+    # Get the Instance ID via IMDS
+    INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+    echo "INSTANCE_ID=$INSTANCE_ID."
+    
+    # Must figure out which REGION this Cloud9 instance is in.
+    EC2_AVAIL_ZONE=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone`
+    if [[ -z $EC2_AVAIL_ZONE ]]; then
+            echo "Could not access Instance Meta Data Service (IMDS). Exiting..."
+            exit 2
+    fi
+    C9_REGION="`echo \"$EC2_AVAIL_ZONE\" | sed 's/[a-z]$//'`"
+
+else
+    INSTANCE_ID=$2
+    
+    if [ -z $3 ]; then
+        echo "Need to know the REGION for the instance ID $INSTANCE_ID..."
+        exit 2
+    fi
+    
+    C9_REGION=$3
+    
+fi
+
+echo "Checking for Cloud9 Instance $INSTANCE_ID in Region $C9_REGION"
+
+VPC_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].VpcId" --output text --region $C9_REGION)
+echo "VPC_ID for the Cloud9 instance is $VPC_ID."
+
+EKS_VPC_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-VpcId'].Value" --output text)
+echo "EKS_VPC_ID=$EKS_VPC_ID"
+
+# NOTE: We're using server side --filter to make sure we find the proper ACTIVE peering connection between the two VPCs.
+# See: https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpc-peering-connections.html (--filters)
+PCX_ID=$(aws ec2 describe-vpc-peering-connections --filters "Name=accepter-vpc-info.vpc-id,Values=$EKS_VPC_ID" "Name=requester-vpc-info.vpc-id,Values=$VPC_ID" "Name=status-code,Values=active" --query "VpcPeeringConnections[*].VpcPeeringConnectionId" --output text --region $C9_REGION)
+echo "PCX_ID=$PCX_ID"
+
+echo "Deleting Route in the Cloud9 Subnet Route table"
+
+C9_VPC_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].VpcId" --output text --region $C9_REGION)
+echo "VPC_ID for the Cloud9 instance is $C9_VPC_ID."
+
+C9_SUBNET_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].SubnetId" --output text --region $C9_REGION)
+echo "SUBNET_ID=$C9_SUBNET_ID"
+
+C9_ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $C9_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$C9_SUBNET_ID'].RouteTableId")
+echo "C9_ROUTE_TABLE_ID=$C9_ROUTE_TABLE_ID."
+
+if [[ $C9_ROUTE_TABLE_ID -eq "" ]]; then
+    # If not route table listed, assume IMPLICIT Associaton to the main route table.
+    echo "C9 Must be using the Main Route Table! (Implicit Association)"
+    # Based off this : https://stackoverflow.com/questions/66599866/aws-api-how-to-get-main-route-table-id-by-subnet-id-association-subnet-id-fil
+    # Must combine both server side --filter and client side --query to get the Main route table
+    # I have NOT tested this extensively...
+    C9_ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $C9_REGION --output text --query "RouteTables[?VpcId=='$C9_VPC_ID'].RouteTableId" --filters "Name=association.main,Values=true" )
+    echo "C9_ROUTE_TABLE_ID=$C9_ROUTE_TABLE_ID"
+
+fi
+
+C9_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $C9_SUBNET_ID --region $C9_REGION --output text --query "Subnets[0].CidrBlock")
+echo "C9_CIDR_BLOCK=$C9_CIDR_BLOCK"
+
+
+# We need to remove the route from the C9 route table BEFORE we delete the Peering Connection.
+EKS_VPC_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-VpcId'].Value" --output text)
+echo "EKS_VPC_ID=$EKS_VPC_ID"
+
+EKS_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $EKS_VPC_ID --query ["Vpcs[*].CidrBlock"] --output text)
+echo "EKS_VPC_CIDR_BLOCK=$EKS_VPC_CIDR_BLOCK"
+
+aws ec2 delete-route --route-table-id $C9_ROUTE_TABLE_ID --destination-cidr-block $EKS_VPC_CIDR_BLOCK --region $C9_REGION
+
+#
+# Subnet 01
+# 
+
+EKS_SUBNET_ID_1=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId01'].Value" --output text)
+echo "EKS_SUBNET_ID_1=$EKS_SUBNET_ID_1"
+
+EKS_SUBNET_CIDR_BLOCK_1=$(aws ec2 describe-subnets --subnet-ids $EKS_SUBNET_ID_1 --region $REGION --output text --query "Subnets[0].CidrBlock")
+echo "EKS_SUBNET_CIDR_BLOCK_1=$EKS_SUBNET_CIDR_BLOCK_1"
+
+ROUTE_TABLE_ID_1=$(aws ec2 describe-route-tables --region $REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$EKS_SUBNET_ID_1'].RouteTableId")
+echo "ROUTE_TABLE_ID_1=$ROUTE_TABLE_ID_1"
+
+echo "Removing Route Table entry 1 ..."
+aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID_1 --destination-cidr-block $C9_CIDR_BLOCK
+
+#
+# Subnet 02
+#
+
+EKS_SUBNET_ID_2=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId02'].Value" --output text)
+echo "EKS_SUBNET_ID_2=$EKS_SUBNET_ID_2"
+
+EKS_SUBNET_CIDR_BLOCK_2=$(aws ec2 describe-subnets --subnet-ids $EKS_SUBNET_ID_2 --region $REGION --output text --query "Subnets[0].CidrBlock")
+echo "EKS_SUBNET_CIDR_BLOCK_2=$EKS_SUBNET_CIDR_BLOCK_2"
+
+ROUTE_TABLE_ID_2=$(aws ec2 describe-route-tables --region $REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$EKS_SUBNET_ID_2'].RouteTableId")
+echo "ROUTE_TABLE_ID_2=$ROUTE_TABLE_ID_2"
+
+echo "Removing Route Table entry 2 ..."
+aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID_2 --destination-cidr-block $C9_CIDR_BLOCK
+
+#
+# Subnet 03
+#
+# This subnet is optional and will only be present if you overrode the UseThirdAZ parameter in the VPC stack.
+#
+
+echo "Checking to see if a 3rd private subnet was created..."
+EKS_SUBNET_ID_3=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId03'].Value" --output text)
+echo "EKS_SUBNET_ID_3=$EKS_SUBNET_ID_3."
+
+if [[ $EKS_SUBNET_ID_3 != "" ]]; then
+
+    EKS_SUBNET_CIDR_BLOCK_3=$(aws ec2 describe-subnets --subnet-ids $EKS_SUBNET_ID_3 --region $REGION --output text --query "Subnets[0].CidrBlock")
+    echo "EKS_SUBNET_CIDR_BLOCK_3=$EKS_SUBNET_CIDR_BLOCK_3"
+    
+    ROUTE_TABLE_ID_3=$(aws ec2 describe-route-tables --region $REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$EKS_SUBNET_ID_3'].RouteTableId")
+    echo "ROUTE_TABLE_ID_3=$ROUTE_TABLE_ID_3"
+    
+    echo "Removing Route Table entry 3 ..."
+    aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID_3 --destination-cidr-block $C9_CIDR_BLOCK
+
+fi
+
+# Now, update the security group to no longer allow various TCP connections from the the C9 IP
+# We have to modify the rules on a security group created by eksctl.
+EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --stack-name "eksctl-$PREFIX-cluster" --query "Stacks[0].Outputs[?OutputKey=='ClusterSecurityGroupId'].OutputValue" --output text)
+echo "EKS_SECURITY_GROUP=$EKS_SECURITY_GROUP"
+
+aws ec2 revoke-security-group-ingress --region $REGION \
+    --group-id $EKS_SECURITY_GROUP \
+    --protocol tcp \
+    --port 22 \
+    --cidr $C9_CIDR_BLOCK
+    
+aws ec2 revoke-security-group-ingress --region $REGION \
+    --group-id $EKS_SECURITY_GROUP \
+    --protocol tcp \
+    --port 80 \
+    --cidr $C9_CIDR_BLOCK
+
+aws ec2 revoke-security-group-ingress --region $REGION \
+    --group-id $EKS_SECURITY_GROUP \
+    --protocol tcp \
+    --port 443 \
+    --cidr $C9_CIDR_BLOCK
+
+aws ec2 revoke-security-group-ingress --region $REGION \
+    --group-id $EKS_SECURITY_GROUP \
+    --protocol tcp \
+    --port 3000 \
+    --cidr $C9_CIDR_BLOCK
+
+aws ec2 revoke-security-group-ingress --region $REGION \
+    --group-id $EKS_SECURITY_GROUP \
+    --protocol tcp \
+    --port 8080 \
+    --cidr $C9_CIDR_BLOCK
+
+# Access to the entire NodePort range (these are dynamically allocated usually when using Load Balancer)    
+aws ec2 revoke-security-group-ingress --region $REGION \
+    --group-id $EKS_SECURITY_GROUP \
+    --ip-permissions IpProtocol=tcp,FromPort=30000,ToPort=32767,IpRanges="[{CidrIp=$C9_CIDR_BLOCK,Description='Access to NodePort range'}]" 
+
+# The LAST thing we do is remove the Peering Connection...
+echo "Removing Peering connection..."
+aws ec2 delete-vpc-peering-connection --vpc-peering-connection-id $PCX_ID --region $C9_REGION
+
+echo "Done."

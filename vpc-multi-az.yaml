@@ -318,6 +318,9 @@ Resources:
         # In case we want to use with this EKS
       - Key: kubernetes.io/role/elb
         Value: 1
+        # We can use this tag to easily find the public or private subnets later via CLI
+      - Key: subnet_type
+        Value: public
 
   PublicSubnet02:
     Type: AWS::EC2::Subnet
@@ -337,6 +340,8 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PublicSubnet02"
+      - Key: subnet_type
+        Value: public
 
   PublicSubnet03:
     Type: AWS::EC2::Subnet
@@ -357,6 +362,9 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PublicSubnet03"
+      - Key: subnet_type
+        Value: public
+
  
   PrivateSubnet01:
     Type: AWS::EC2::Subnet
@@ -375,6 +383,8 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet01"
+      - Key: subnet_type
+        Value: private
  
   PrivateSubnet02:
     Type: AWS::EC2::Subnet
@@ -393,7 +403,9 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet02"
- 
+      - Key: subnet_type
+        Value: private
+
   PrivateSubnet03:
     Type: AWS::EC2::Subnet
     Condition: CreateThirdAZ
@@ -412,7 +424,9 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet03"
- 
+      - Key: subnet_type
+        Value: private
+
   PublicSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -616,7 +630,7 @@ Resources:
 #   \$$$$$$   \$$$$$$  \$$      \$$
 
 #
-# SSM requires several Interface Endpoints for full functionaliy
+# SSM requires several Interface Endpoints for full functionality
 # We use this only for the Private Subnets
 # There is a NAT Gateway on the private subnets, but this keeps the traffic
 # off the "Internet"

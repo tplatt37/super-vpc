@@ -38,13 +38,14 @@ phases:
       - VPCID=$(aws cloudformation list-exports --query "Exports[?Name=='$TARGET_PREFIX-VpcId'].Value" --output text)
       - echo "VPCID=$VPCID"
       - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" 
-      - ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" | grep '""' | wc -l)
+      - ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" | wc -l)
       - echo "ENI_COUNT=$ENI_COUNT"
       
-      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID > report.txt
+      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" > report.txt
+      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID >> report.txt
       
       # There should be 12 ENIs (NAT GW and VPC Interface Endpoint)
-      - if [ $ENI_COUNT -neq 12 ]; then echo "Less than 12 ENIs - something wrong?... exiting..."; exit 1; fi
+      - if [ $ENI_COUNT -ne 12 ]; then echo "Less (or more) than 12 ENIs - something wrong?... exiting..."; exit 1; fi
 
       # Setup Athena, wait 10 minutes. This could be a loop to wait for the stack to complete.
       - ./athena-query-setup.sh "$TARGET_PREFIX"

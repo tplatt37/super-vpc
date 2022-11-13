@@ -76,7 +76,7 @@ echo "FLOW_LOG_ID=$FLOW_LOG_ID"
 aws ec2 delete-flow-logs --flow-log-ids $FLOW_LOG_ID
 
 # Get the artifacts bucket from the Logging stack
-BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-LoggingBucket'].Value" --output text)
+BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-VPCLoggingBucket'].Value" --output text)
 echo "BUCKET=$BUCKET"
 
 # Empty the utility bucket (Otherwise stack delete will fail)

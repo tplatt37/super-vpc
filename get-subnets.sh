@@ -38,15 +38,7 @@ SUBNETS=$(aws ec2 describe-subnets \
     --query "Subnets[*].SubnetId" \
     --output text)
 
-# TODO: This should be dynamic... maybe later
-if [ $SUBNET_COUNT -eq 1 ]; then
- echo $SUBNETS | awk {'print $1'}
-fi
-
-if [ $SUBNET_COUNT -eq 2 ]; then
-    echo $SUBNETS | awk {'print $1","$2'}
-fi
-
-if [ $SUBNET_COUNT -eq 3 ]; then
-    echo $SUBNETS | awk {'print $1","$2","$3'}
-fi
+#
+# This turns on string into multiple lines, we head the amount we want, then turn it into a comma delimited list with no trailing comma.
+#
+echo $SUBNETS | tr -s '[:blank:]' '\n' | head -n $SUBNET_COUNT | tr '\n' ',' | sed 's/,$/\n/'

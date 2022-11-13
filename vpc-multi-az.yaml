@@ -731,7 +731,7 @@ Resources:
               !Join
                 - "-"
                 - - !Ref Prefix
-                  - "LoggingBucketArn"
+                  - "VPCLoggingBucketArn"
       LogDestinationType: s3
       MaxAggregationInterval: 60
       # Flow Logs can be NetworkInterface, Subnet, TransitGateway, VPC, etc.

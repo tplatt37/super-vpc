@@ -36,8 +36,8 @@ phases:
       # Count ENIs
       - VPCID=$(aws cloudformation list-exports --query "Exports[?Name=='$TARGET_PREFIX-VpcId'].Value" --output text)
       - echo "VPCID=$VPCID"
-      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" 
-      - ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" --output text | tr -s '[:blank:]' '\n' | wc -l)
+      - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].NetworkInterfaceId" 
+      - ENI_COUNT=$(aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].NetworkInterfaceId" --output text | tr -s '[:blank:]' '\n' | wc -l)
       - echo "ENI_COUNT=$ENI_COUNT"
       
       - aws ec2 describe-network-interfaces --filter Name=vpc-id,Values=$VPCID --query "NetworkInterfaces[*].Description" > report.txt

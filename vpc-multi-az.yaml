@@ -122,8 +122,9 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
+      # VPC name will be Prefix-vpc, assuming the install script is used (it names the stack as such)
       - Key: Name
-        Value: !Sub '${AWS::StackName}-vpc'
+        Value: !Sub '${AWS::StackName}'
 
   InternetGateway:
     Type: "AWS::EC2::InternetGateway"

@@ -698,7 +698,7 @@ Resources:
   # Let everything in this group talk back and forth
   # Everything = The ENIs for the EC2 instances and the SSM Interface Endpoints
   # TODO: I don't think we need this rule. The CIDR rule below takes care of anything.
-  SSMInboundRule:
+  SSMInboundRule1:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       IpProtocol: -1
@@ -710,7 +710,7 @@ Resources:
   # Let everything in the VPC CIDR use 443 - so machines in the private or public subnets can contact SSM.
   # Interface Endpoints rely on private DNS names, so the machines in public will also (there's ONE dns per VPC)
   # try to contact the VPC Interface Endpoints (which are an ENI in the Private subnet)
-  SSMInboundRule:
+  SSMInboundRule2:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       IpProtocol: tcp
@@ -754,7 +754,36 @@ Resources:
       Tags: 
         - Key: demo
           Value: !Ref Prefix
+
+#   ______   ________   ______   __    __  _______   ______ ________ __      __         ______   _______    ______   __    __  _______  
+#  /      \ |        \ /      \ |  \  |  \|       \ |      \        \  \    /  \       /      \ |       \  /      \ |  \  |  \|       \ 
+# |  $$$$$$\| $$$$$$$$|  $$$$$$\| $$  | $$| $$$$$$$\ \$$$$$$\$$$$$$$$\$$\  /  $$      |  $$$$$$\| $$$$$$$\|  $$$$$$\| $$  | $$| $$$$$$$\
+# | $$___\$$| $$__    | $$   \$$| $$  | $$| $$__| $$  | $$    | $$    \$$\/  $$       | $$ __\$$| $$__| $$| $$  | $$| $$  | $$| $$__/ $$
+#  \$$    \ | $$  \   | $$      | $$  | $$| $$    $$  | $$    | $$     \$$  $$        | $$|    \| $$    $$| $$  | $$| $$  | $$| $$    $$
+#  _\$$$$$$\| $$$$$   | $$   __ | $$  | $$| $$$$$$$\  | $$    | $$      \$$$$         | $$ \$$$$| $$$$$$$\| $$  | $$| $$  | $$| $$$$$$$ 
+# |  \__| $$| $$_____ | $$__/  \| $$__/ $$| $$  | $$ _| $$_   | $$      | $$          | $$__| $$| $$  | $$| $$__/ $$| $$__/ $$| $$      
+#  \$$    $$| $$     \ \$$    $$ \$$    $$| $$  | $$|   $$ \  | $$      | $$           \$$    $$| $$  | $$ \$$    $$ \$$    $$| $$      
+#   \$$$$$$  \$$$$$$$$  \$$$$$$   \$$$$$$  \$$   \$$ \$$$$$$   \$$       \$$            \$$$$$$  \$$   \$$  \$$$$$$   \$$$$$$  \$$
+
   
+  #                            
+  # Create a General Purpose Security Group
+  # Place any EC2 instance in here that you want to be able to reach from your Cloud9 environment
+  # You can use the XXXXX.sh script to add Inbound Ports to this SG 
+  # (You will also want to use peer.sh to create a VPC peering connection)
+  #
+
+  EC2SecurityGroup: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: A Security Group for various purposes (Use this however you like)
+      VpcId: !Ref VPC
+   
+   #
+   # NOTE: We define NOTHING inbound here.  See xxxxxx.sh to add inbound rules
+   # Being a new Security Group, it will have an Allow Outbound * by default - we don't need to specify that.
+   #
+
 
 #   ______   __    __ ________  _______   __    __ ________   ______  
 #  /      \ |  \  |  \        \|       \ |  \  |  \        \ /      \ 
@@ -843,3 +872,10 @@ Outputs:
     Value: !Ref VPCFlowLogs
     Export:
       Name: !Join ["-", [!Ref Prefix, "FlowLogId"]]
+      
+  EC2SecurityGroup:
+    Description: Security group for the general purposes - use however you like.
+    Value: !Join [ ",", [ !Ref EC2SecurityGroup ] ]
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "EC2SecurityGroup"]]
+      

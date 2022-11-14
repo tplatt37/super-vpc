@@ -1,7 +1,14 @@
 #!/bin/bash
 
+# Add an inbound rule to a pre-exising Security Group.
+#
+# Parameters:
+# TARGET_REGION
+# SecurityGroupId
+# Ports (Destination)
+# C9_CIDR_BLOCK (source)
+#
 
-# TODO : Let them pass in the Security Group and then a list of tcp ports to open
 
 # We have to modify the rules on a security group created by eksctl.
 TARGET_SECURITY_GROUP=$(aws cloudformation describe-stacks --stack-name "eksctl-$PREFIX-cluster" --query "Stacks[0].Outputs[?OutputKey=='ClusterSecurityGroupId'].OutputValue" --output text)

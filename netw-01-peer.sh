@@ -41,7 +41,14 @@ echo "TARGET_VPC_CIDR_BLOCK=$TARGET_VPC_CIDR_BLOCK"
 
 # Peering from the VPC / REGION Cloud9 is in to the VPC / REGION that the databases are in.
 #
-PEERING_ID=$(aws ec2 create-vpc-peering-connection --region $C9_REGION --vpc-id $C9_VPC_ID --peer-vpc-id $TARGET_VPC_ID --peer-region $TARGET_REGION --tag-specifications "ResourceType=vpc-peering-connection,Tags=[{Key=demo,Value=test}]" --output text --query "VpcPeeringConnection.VpcPeeringConnectionId")
+PEERING_ID=$(aws ec2 create-vpc-peering-connection \
+  --region $TARGET_REGION \
+  --vpc-id $TARGET_VPC_ID \
+  --peer-vpc-id $C9_VPC_ID \
+  --peer-region $C9_REGION \
+  --output text --query "VpcPeeringConnection.VpcPeeringConnectionId" \
+  --tag-specifications "ResourceType=vpc-peering-connection,Tags=[{Key=notes,Value=Created for $PREFIX VPC peering connection},{Key=demo,Value=$PREFIX}]" )
+  # NOTE: Peering Connection Tags only show up in ONE REGION (not both!) - the TARGET_REGION in this case.
   
 echo "PEERING_ID=$PEERING_ID"
 
@@ -50,16 +57,31 @@ echo "Sleep 30 seconds, wait for VPC peering to be Active..."
 sleep 30
 
 echo "Gonna wait for the VPC peering connection to come into existence..."
-aws ec2 wait vpc-peering-connection-exists --vpc-peering-connection-id $PEERING_ID --region $C9_REGION
+aws ec2 wait vpc-peering-connection-exists --vpc-peering-connection-id $PEERING_ID --region $TARGET_REGION
+
+# Put equivalent tags on the other side (region)
+aws ec2 create-tags --region $C9_REGION --resources $PEERING_ID \
+--tags "Key=notes,Value=Create for $PREFIX VPC Peering Connection" "Key=demo,Value=$PREFIX"
 
 echo "Accepting VPC Peering connection..."
-aws ec2 accept-vpc-peering-connection --vpc-peering-connection-id $PEERING_ID --region $TARGET_REGION
+aws ec2 accept-vpc-peering-connection \
+ --vpc-peering-connection-id $PEERING_ID \
+ --region $C9_REGION --output text \
+ --query "VpcPeeringConnection.AccepterVpcInfo.VpcId"
 
 echo "Sleep 30 seconds (again) wait for VPC peering acceptance..."
 sleep 30
 
+# TARGET_REGION is the Requestor, C9_REGION is the accepter
 echo "Modifying VPC Peering Connection to allow DNS Name Resolution ... both ways."
-aws ec2 modify-vpc-peering-connection-options --requester-peering-connection-options AllowDnsResolutionFromRemoteVpc=true --vpc-peering-connection-id $PEERING_ID --region $C9_REGION 
-aws ec2 modify-vpc-peering-connection-options --accepter-peering-connection-options AllowDnsResolutionFromRemoteVpc=true --vpc-peering-connection-id $PEERING_ID --region $TARGET_REGION 
+aws ec2 modify-vpc-peering-connection-options \
+  --requester-peering-connection-options AllowDnsResolutionFromRemoteVpc=true \
+  --vpc-peering-connection-id $PEERING_ID --region $TARGET_REGION \
+  --query "RequesterPeeringConnectionOptions.AllowDnsResolutionFromRemoteVpc"
+  
+aws ec2 modify-vpc-peering-connection-options \
+  --accepter-peering-connection-options AllowDnsResolutionFromRemoteVpc=true \
+  --vpc-peering-connection-id $PEERING_ID --region $C9_REGION \
+  --query "AccepterPeeringConnectionOptions.AllowDnsResolutionFromRemoteVpc"
 
 exit 0

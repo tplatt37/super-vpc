@@ -5,6 +5,12 @@
 # Ref: https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-athena.html
 #
 #
+# NOTE: The Athena Query setup can croak (the dynamic stack will timeout) if it doesn't have sufficient LakeFormation permissions
+# Check the Lambda created by the stack and look at the Logs
+# AccessDeniedException: Insufficient Lake Formation permission(s) on fl042589dd3db99af01monthly2022111420221130
+# 2022-11-14 - Works OK in us-east-1 , but not in us-west-2
+# I think I have something setup in us-west-2 that requires LakeFormation
+#
 
 if [ -z $1 ]; then
         echo "Must pass in a unique name that will also be used as a prefix to use for resource naming... Exiting..."

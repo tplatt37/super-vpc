@@ -780,6 +780,25 @@ Outputs:
     Export:
       Name: !Join ["-", [ !Ref Prefix, "PublicSubnetIds"]]
 
+  PublicSubnet1:
+    Description: Public Subnet1 ID in the VPC
+    Value: !Ref PublicSubnet01
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnet01"]]
+
+  PublicSubnet2:
+    Description: Public Subnet2 ID in the VPC
+    Value: !Ref PublicSubnet02
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnet02"]]
+
+  PublicSubnet3:
+    Description: Public Subnet3 ID in the VPC
+    Value: !Ref PublicSubnet03
+    Condition: CreateThirdAZ
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnet03"]]
+ 
   PrivateSubnetIds:
     Description: PRIVATE Subnets IDs in the VPC.  Comma delimited list
     Value: !Join [ ",", [ !Ref PrivateSubnet01, !Ref PrivateSubnet02, !If [CreateThirdAZ, !Ref PrivateSubnet03 , !Ref AWS::NoValue ] ] ]

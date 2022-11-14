@@ -36,7 +36,6 @@ if [ -z $6 ]; then
 fi
 INSTANCE_ID=$6
 
-
 if [ -z $7 ]; then
         echo "Must pass in the PEERING_ID - of the peering connection... Exiting..."
         exit 1
@@ -81,65 +80,81 @@ echo "C9_CIDR_BLOCK (Subnet)=$C9_CIDR_BLOCK"
 C9_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $C9_VPC_ID --region $C9_REGION --query ["Vpcs[*].CidrBlock"] --output text)
 echo "C9_VPC_CIDR_BLOCK (VP)=$C9_VPC_CIDR_BLOCK"
 
-
-exit
-
-
-# Deal with the destination route tables first.
-
 #
-# Subnet 01
-# 
-
-TARGET_SUBNET_ID_1=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId01'].Value" --output text)
-echo "TARGET_SUBNET_ID_1=$TARGET_SUBNET_ID_1"
-
-TARGET_SUBNET_CIDR_BLOCK_1=$(aws ec2 describe-subnets --subnet-ids $TARGET_SUBNET_ID_1 --region $REGION --output text --query "Subnets[0].CidrBlock")
-echo "TARGET_SUBNET_CIDR_BLOCK_1=$TARGET_SUBNET_CIDR_BLOCK_1"
-
-ROUTE_TABLE_ID_1=$(aws ec2 describe-route-tables --region $REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID_1'].RouteTableId")
-echo "ROUTE_TABLE_ID_1=$ROUTE_TABLE_ID_1"
-
+# Now we need to update the Route Tables.
+# There's ONE route table for the Cloud9 instance (which resides in one subnet - of course)
 #
-# Subnet 02
+# There's up to 4 Route Tables on the TARGET VPC side.
+# There are either 2 or 3 Private Route Tables, and 1 Public Route Table.
 #
 
-TARGET_SUBNET_ID_2=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId02'].Value" --output text)
-echo "TARGET_SUBNET_ID_2=$TARGET_SUBNET_ID_2"
+#
+# Cloud9 Subnet
+#
 
-TARGET_SUBNET_CIDR_BLOCK_2=$(aws ec2 describe-subnets --subnet-ids $TARGET_SUBNET_ID_2 --region $REGION --output text --query "Subnets[0].CidrBlock")
-echo "TARGET_SUBNET_CIDR_BLOCK_2=$TARGET_SUBNET_CIDR_BLOCK_2"
-
-ROUTE_TABLE_ID_2=$(aws ec2 describe-route-tables --region $REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID_2'].RouteTableId")
-echo "ROUTE_TABLE_ID_2=$ROUTE_TABLE_ID_2"
-
-# TODO Public Subnets? 
-# TODO Subnet 3 ?
-
-
-# Add 1 Route Table entries so Cloud9 can reach all of the Private Subnets.
+# Add 1 Route Table entry so the single Cloud9 Subnet can reach all of the Private Subnets.
 aws ec2 create-route --region $C9_REGION \
     --route-table-id $C9_ROUTE_TABLE_ID \
     --vpc-peering-connection-id $PEERING_ID \
-    --destination-cidr-block $TARGET_VPC_CIDR_BLOCK \
-    > /dev/null
-
-# Add 2 Route Table Entries so the Private Subnets can reach Cloud9    
-aws ec2 create-route --region $REGION \
-    --route-table-id $ROUTE_TABLE_ID_1 \
-    --vpc-peering-connection-id $PEERING_ID \
-    --destination-cidr-block $C9_CIDR_BLOCK \
-    > /dev/null
-    
-aws ec2 create-route --region $REGION \
-    --route-table-id $ROUTE_TABLE_ID_2 \
-    --vpc-peering-connection-id $PEERING_ID \
-    --destination-cidr-block $C9_CIDR_BLOCK \
-    > /dev/null
-
+    --destination-cidr-block $TARGET_VPC_CIDR_BLOCK 
 
 #
-# Subnet 03
+# Public Subnets - there's only 1 route table for the public subnets
+#
+
+echo "PUBLIC SUBNETS"
+
+# We grab the first subnet, as it uses the same route table as all of them.
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PublicSubnetId01'].Value" --output text)
+echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
+
+RT_PUBLIC=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID'].RouteTableId")
+echo "RT_PUBLIC=$RT_PUBLIC"
+
+# Add a Route Table Entries so this Private Subnet can reach the Cloud9 VPC
+aws ec2 create-route --region $TARGET_REGION \
+    --route-table-id $RT_PUBLIC \
+    --vpc-peering-connection-id $PEERING_ID \
+    --destination-cidr-block $C9_CIDR_BLOCK 
+
+#
+# Private Subnet 01
+# 
+
+echo "PRIVATE SUBNET 01"
+
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId01'].Value" --output text)
+echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
+
+RT_PRIVATE=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID'].RouteTableId")
+echo "RT_PRIVATE=$RT_PRIVATE"
+
+# Add a Route Table Entries so this Private Subnet can reach the Cloud9 VPC
+aws ec2 create-route --region $TARGET_REGION \
+    --route-table-id $RT_PRIVATE \
+    --vpc-peering-connection-id $PEERING_ID \
+    --destination-cidr-block $C9_CIDR_BLOCK 
+
+#
+# Private Subnet 02
+#
+
+echo "PRIVATE SUBNET 02"
+
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId02'].Value" --output text)
+echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
+
+RT_PRIVATE=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID'].RouteTableId")
+echo "RT_PRIVATE=$RT_PRIVATE"
+
+# Add a Route Table Entries so this Private Subnet can reach the Cloud9 VPC
+aws ec2 create-route --region $TARGET_REGION \
+    --route-table-id $RT_PRIVATE \
+    --vpc-peering-connection-id $PEERING_ID \
+    --destination-cidr-block $C9_CIDR_BLOCK 
+
+#
+# OPTIONAL Third Subnet (Private)
 #
 # This subnet is optional and will only be present if you overrode the UseThirdAZ parameter in the VPC stack.
 #
@@ -150,24 +165,19 @@ echo "TARGET_SUBNET_ID_3=$TARGET_SUBNET_ID_3."
 
 if [[ $TARGET_SUBNET_ID_3 != "" ]]; then
 
-    TARGET_SUBNET_CIDR_BLOCK_3=$(aws ec2 describe-subnets --subnet-ids $TARGET_SUBNET_ID_3 --region $REGION --output text --query "Subnets[0].CidrBlock")
-    echo "TARGET_SUBNET_CIDR_BLOCK_3=$TARGET_SUBNET_CIDR_BLOCK_3"
+    echo "PRIVATE SUBNET 03"
     
-    ROUTE_TABLE_ID_3=$(aws ec2 describe-route-tables --region $REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID_3'].RouteTableId")
-    echo "ROUTE_TABLE_ID_3=$ROUTE_TABLE_ID_3"
-        
-    aws ec2 create-route --region $REGION \
-        --route-table-id $ROUTE_TABLE_ID_3 \
+    RT_PRIVATE=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID_3'].RouteTableId")
+    echo "RT_PRIVATE=$RT_PRIVATE"
+    
+    # Add a Route Table Entries so this Private Subnet can reach the Cloud9 VPC
+    aws ec2 create-route --region $TARGET_REGION \
+        --route-table-id $RT_PRIVATE \
         --vpc-peering-connection-id $PEERING_ID \
-        --destination-cidr-block $C9_CIDR_BLOCK \
-        > /dev/null
-        
-    # TODO - Also PUBLIC SUBNET
-    
+        --destination-cidr-block $C9_CIDR_BLOCK 
+       
 else
-    echo "3rd private subnet not found... that's OK."
+    echo "3rd private subnet not found... and that's OK."
 fi
     
-./groups.sh 
-
 echo "Done."

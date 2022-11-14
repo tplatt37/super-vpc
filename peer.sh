@@ -64,16 +64,17 @@ echo "C9_VPC_ID=$C9_VPC_ID"
 echo "TARGET_REGION=$TARGET_REGION"
 echo "TARGET_VPC_ID=$TARGET_VPC_ID"
 
+# This will create, tag, and accept the VPC Peering Connection
 ./netw-01-peer.sh $PREFIX $C9_REGION $C9_VPC_ID $TARGET_REGION $TARGET_VPC_ID
 
-# Find the Peering Connection that was just created.
+# Find the Peering Connection that was just created and accepted.
 PEERING_ID=$(aws ec2 describe-vpc-peering-connections --region $TARGET_REGION \
 --filters "Name=accepter-vpc-info.vpc-id,Values=$C9_VPC_ID" "Name=requester-vpc-info.vpc-id,Values=$TARGET_VPC_ID" \
 --output text --query "VpcPeeringConnections[0].VpcPeeringConnectionId")
+echo "INSTANCE_ID=$INSTANCE_ID"
 echo "PEERING_ID=$PEERING_ID"
 
-exit 0
-
+# We need routes to enable the two VPCs to talk back and forth.
 ./netw-02-routes.sh $PREFIX $C9_REGION $C9_VPC_ID $TARGET_REGION $TARGET_VPC_ID $INSTANCE_ID $PEERING_ID
 
 exit 0

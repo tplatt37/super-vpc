@@ -28,7 +28,7 @@ if [ -z $5 ]; then
         echo "Must pass in the TARGET_VPC_ID - where the Target Resource resides... Exiting..."
         exit 1
 fi
-TARGET_VPC_ID=$6
+TARGET_VPC_ID=$5
 
 if [ -z $6 ]; then
         echo "Must pass in the INSTANCE_ID ... Exiting..."
@@ -46,12 +46,17 @@ PEERING_ID=$7
 echo "PEERING_ID=$PEERING_ID"
 echo "INSTANCE_ID=$INSTANCE_ID"
 
-
 TARGET_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $TARGET_VPC_ID --query ["Vpcs[*].CidrBlock"] --output text)
 echo "TARGET_VPC_CIDR_BLOCK=$TARGET_VPC_CIDR_BLOCK"
 
+# TODO - don't think this is needed here.
 #PRIVATE_IP_ADDRESS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PrivateIpAddress" --output text --region $C9_REGION)
 #echo "PRIVATE_IP_ADDRESS for the Cloud9 instance is $PRIVATE_IP_ADDRESS."
+
+#
+# Find the Route Table of the Cloud9/EC2 instance.
+# We'll need to add routes so it can reach the peered VPC!
+#
 
 C9_SUBNET_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].SubnetId" --output text --region $C9_REGION)
 echo "SUBNET_ID=$C9_SUBNET_ID"
@@ -60,7 +65,7 @@ C9_ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $C9_REGION --output t
 echo "C9_ROUTE_TABLE_ID=$C9_ROUTE_TABLE_ID."
 
 if [[ $C9_ROUTE_TABLE_ID -eq "" ]]; then
-    # If not route table listed, assume IMPLICIT Associaton to the main route table.
+    # If no route table listed, assume IMPLICIT Associaton to the main route table.
     echo "C9 Must be using the Main Route Table! (Implicit Association)"
     # Must combine both server side --filter and client side --query to get the Main route table
     C9_ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $C9_REGION --output text --query "RouteTables[?VpcId=='$C9_VPC_ID'].RouteTableId" --filters "Name=association.main,Values=true" )
@@ -68,13 +73,14 @@ if [[ $C9_ROUTE_TABLE_ID -eq "" ]]; then
 
 fi
 
-# We need to add a Route to the CIDR of the remote VPC, pointing to the peering connection
+# We need to add a Route to the CIDR of the Cloud9 VPC, pointing to the peering connection
 
 C9_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $C9_SUBNET_ID --region $C9_REGION --output text --query "Subnets[0].CidrBlock")
 echo "C9_CIDR_BLOCK (Subnet)=$C9_CIDR_BLOCK"
 
 C9_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $C9_VPC_ID --region $C9_REGION --query ["Vpcs[*].CidrBlock"] --output text)
 echo "C9_VPC_CIDR_BLOCK (VP)=$C9_VPC_CIDR_BLOCK"
+
 
 exit
 

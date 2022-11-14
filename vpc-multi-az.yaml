@@ -874,7 +874,7 @@ Outputs:
       Name: !Join ["-", [!Ref Prefix, "FlowLogId"]]
       
   EC2SecurityGroup:
-    Description: Security group for the general purposes - use however you like.
+    Description: Security group for general purposes - use however you like.
     Value: !Join [ ",", [ !Ref EC2SecurityGroup ] ]
     Export:
       Name: !Join ["-", [ !Ref Prefix, "EC2SecurityGroup"]]

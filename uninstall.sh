@@ -107,6 +107,13 @@ echo "Deleting ($STACK_NAME) ..."
 aws cloudformation delete-stack --stack-name $STACK_NAME
 aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME
 
+#
+# Remove all Ingress and Egress rules from the EC2SecurityGroup for a CLEAN uninstall.
+#
+
+./revoke-group-ingress.sh $PREFIX
+
+
 STACK_NAME=$PREFIX-vpc
 echo "Deleting ($STACK_NAME) ..."
 aws cloudformation delete-stack --stack-name $STACK_NAME

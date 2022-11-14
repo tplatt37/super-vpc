@@ -184,53 +184,15 @@ fi
 echo "Removing Peering connection ($PEERING_ID $TARGET_REGION)..."
 aws ec2 delete-vpc-peering-connection --vpc-peering-connection-id $PEERING_ID --region $TARGET_REGION
 
+#
+#
+# NOTE: We DO NOT remove the EC2SecurityGroup ingress rules here. 
+# We have to do that in a brute force way - so we'll clean those up on VPC uninstall
+# (If you add manual ingress and egress rules - it'll be hard to figure out which is which)
+#
+#
+#
+
+
 echo "Done."
 
-exit 0
-
-#
-# Thinking this needs to go into it's own scirpt....
-#
-#
-
-# Now, update the security group to no longer allow various TCP connections from the the C9 IP
-# We have to modify the rules on a security group created by eksctl.
-EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --stack-name "eksctl-$PREFIX-cluster" --query "Stacks[0].Outputs[?OutputKey=='ClusterSecurityGroupId'].OutputValue" --output text)
-echo "EKS_SECURITY_GROUP=$EKS_SECURITY_GROUP"
-
-aws ec2 revoke-security-group-ingress --region $REGION \
-    --group-id $EKS_SECURITY_GROUP \
-    --protocol tcp \
-    --port 22 \
-    --cidr $C9_CIDR_BLOCK
-    
-aws ec2 revoke-security-group-ingress --region $REGION \
-    --group-id $EKS_SECURITY_GROUP \
-    --protocol tcp \
-    --port 80 \
-    --cidr $C9_CIDR_BLOCK
-
-aws ec2 revoke-security-group-ingress --region $REGION \
-    --group-id $EKS_SECURITY_GROUP \
-    --protocol tcp \
-    --port 443 \
-    --cidr $C9_CIDR_BLOCK
-
-aws ec2 revoke-security-group-ingress --region $REGION \
-    --group-id $EKS_SECURITY_GROUP \
-    --protocol tcp \
-    --port 3000 \
-    --cidr $C9_CIDR_BLOCK
-
-aws ec2 revoke-security-group-ingress --region $REGION \
-    --group-id $EKS_SECURITY_GROUP \
-    --protocol tcp \
-    --port 8080 \
-    --cidr $C9_CIDR_BLOCK
-
-# Access to the entire NodePort range (these are dynamically allocated usually when using Load Balancer)    
-aws ec2 revoke-security-group-ingress --region $REGION \
-    --group-id $EKS_SECURITY_GROUP \
-    --ip-permissions IpProtocol=tcp,FromPort=30000,ToPort=32767,IpRanges="[{CidrIp=$C9_CIDR_BLOCK,Description='Access to NodePort range'}]" 
-
-echo "Done."

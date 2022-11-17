@@ -12,7 +12,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 #   \$$$$$$   \$$$$$$  \$$       \$$$$$$$$ \$$   \$$           \$     \$$        \$$$$$$ 
   
 Description: |
-  VPC - with Private and Public subnets, 2 AZs by default, but 3 AZs is an option via UseThirdAZ parameter.
+  Super-VPC - with Private and Public subnets, 2 AZs by default, but 3 AZs is an option via UseThirdAZ parameter.
   This is meant for trainers/instructors - there are a lot of resources created that cost $
   For example, Interface Endpoints, and lots of NAT Gateways.
   
@@ -809,24 +809,24 @@ Outputs:
     Export:
       Name: !Join ["-", [ !Ref Prefix, "PublicSubnetIds"]]
 
-  PublicSubnet1:
+  PublicSubnet01Id:
     Description: Public Subnet1 ID in the VPC
     Value: !Ref PublicSubnet01
     Export:
-      Name: !Join ["-", [ !Ref Prefix, "PublicSubnet01"]]
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnetId01"]]
 
-  PublicSubnet2:
+  PublicSubnet02Id:
     Description: Public Subnet2 ID in the VPC
     Value: !Ref PublicSubnet02
     Export:
-      Name: !Join ["-", [ !Ref Prefix, "PublicSubnet02"]]
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnetId02"]]
 
-  PublicSubnet3:
+  PublicSubnet03Id:
     Description: Public Subnet3 ID in the VPC
     Value: !Ref PublicSubnet03
     Condition: CreateThirdAZ
     Export:
-      Name: !Join ["-", [ !Ref Prefix, "PublicSubnet03"]]
+      Name: !Join ["-", [ !Ref Prefix, "PublicSubnetId03"]]
  
   PrivateSubnetIds:
     Description: PRIVATE Subnets IDs in the VPC.  Comma delimited list
@@ -834,24 +834,44 @@ Outputs:
     Export:
       Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetIds"]]
 
-  PrivateSubnet1:
+  PrivateSubnetId01:
     Description: Private Subnet1 ID in the VPC
     Value: !Ref PrivateSubnet01
     Export:
-      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnet01"]]
-    
-  PrivateSubnet2:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetId01"]]
+      
+  PrivateSubnetAz01:
+    Condition: CreateThirdAZ
+    Description: Private Subnet1 AZ in the VPC
+    Value: !GetAtt PrivateSubnet01.AvailabilityZone 
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetAz01"]]
+
+  PrivateSubnetId02:
     Description: Private Subnet2 ID in the VPC
     Value: !Ref PrivateSubnet02
     Export:
-      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnet02"]]
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetId02"]]
+      
+  PrivateSubnetAz02:
+    Description: Private Subnet2 AZ in the VPC
+    Value: !GetAtt PrivateSubnet02.AvailabilityZone 
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetAz02"]]
 
-  PrivateSubnet3:
+  PrivateSubnetId03:
     Description: Private Subnet3 ID in the VPC
     Value: !Ref PrivateSubnet03
     Condition: CreateThirdAZ
     Export:
-      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnet03"]]
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetId03"]]
+      
+  PrivateSubnetAz03:
+    Condition: CreateThirdAZ
+    Description: Private Subnet3 AZ in the VPC
+    Value: !GetAtt PrivateSubnet03.AvailabilityZone 
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "PrivateSubnetAz03"]]
 
   DBSecurityGroup:
     Condition: UseWithRDS

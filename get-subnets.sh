@@ -32,6 +32,10 @@ REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
 
 VPCID=$(./get-vpcid.sh $PREFIX)
 
+#
+# NOTE: This only works because super-vpc puts a convenient "subnet_type" tag on each subnet (public/private)
+# This is NOT standard AWS behavior!
+#
 SUBNETS=$(aws ec2 describe-subnets \
     --filter "Name=vpc-id,Values=$VPCID" \
     "Name=tag:subnet_type,Values=$SUBNET_TYPE" \

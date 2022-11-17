@@ -109,11 +109,4 @@ do
 done
 
 echo "Done."
-exit
-
-# For the future.
-#aws ec2 authorize-security-group-ingress --region $REGION \
-#    --group-id $TARGET_SECURITY_GROUP \
-#    --ip-permissions IpProtocol=tcp,FromPort=30000,ToPort=32767,IpRanges="[{CidrIp=$C9_CIDR_BLOCK,Description='Access to NodePort range'}]" 
-
-echo "Done."
+exit 0

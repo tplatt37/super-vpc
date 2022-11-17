@@ -105,7 +105,7 @@ aws ec2 create-route --region $C9_REGION \
 echo "PUBLIC SUBNETS"
 
 # We grab the first subnet, as it uses the same route table as all of them.
-TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PublicSubnet01'].Value" --output text)
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PublicSubnetId01'].Value" --output text)
 echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
 
 RT_PUBLIC=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID'].RouteTableId")
@@ -123,7 +123,7 @@ aws ec2 create-route --region $TARGET_REGION \
 
 echo "PRIVATE SUBNET 01"
 
-TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnet01'].Value" --output text)
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId01'].Value" --output text)
 echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
 
 RT_PRIVATE=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID'].RouteTableId")
@@ -141,7 +141,7 @@ aws ec2 create-route --region $TARGET_REGION \
 
 echo "PRIVATE SUBNET 02"
 
-TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnet02'].Value" --output text)
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId02'].Value" --output text)
 echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
 
 RT_PRIVATE=$(aws ec2 describe-route-tables --region $TARGET_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$TARGET_SUBNET_ID'].RouteTableId")
@@ -161,7 +161,7 @@ aws ec2 create-route --region $TARGET_REGION \
 #
 
 echo "Checking to see if a 3rd private subnet was created..."
-TARGET_SUBNET_ID_3=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnet03'].Value" --output text)
+TARGET_SUBNET_ID_3=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId03'].Value" --output text)
 echo "TARGET_SUBNET_ID_3=$TARGET_SUBNET_ID_3."
 
 if [[ $TARGET_SUBNET_ID_3 != "" ]]; then

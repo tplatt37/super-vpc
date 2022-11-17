@@ -111,7 +111,7 @@ aws ec2 delete-route \
 # Public Subnet Route
 # 
 
-TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PublicSubnet01'].Value" --output text)
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PublicSubnetId01'].Value" --output text)
 echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
 
 TARGET_SUBNET_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $TARGET_SUBNET_ID --region $TARGET_REGION --output text --query "Subnets[0].CidrBlock")
@@ -128,7 +128,7 @@ aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $
 # Private Subnet 1
 #
 
-TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnet01'].Value" --output text)
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId01'].Value" --output text)
 echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
 
 TARGET_SUBNET_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $TARGET_SUBNET_ID --region $TARGET_REGION --output text --query "Subnets[0].CidrBlock")
@@ -144,7 +144,7 @@ aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $
 # Private Subnet 2
 #
 
-TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnet02'].Value" --output text)
+TARGET_SUBNET_ID=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId02'].Value" --output text)
 echo "TARGET_SUBNET_ID=$TARGET_SUBNET_ID"
 
 TARGET_SUBNET_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $TARGET_SUBNET_ID --region $TARGET_REGION --output text --query "Subnets[0].CidrBlock")
@@ -164,7 +164,7 @@ aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $
 #
 
 echo "Checking to see if a 3rd private subnet was created..."
-TARGET_SUBNET_ID_3=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnet03'].Value" --output text)
+TARGET_SUBNET_ID_3=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PrivateSubnetId03'].Value" --output text)
 echo "TARGET_SUBNET_ID_3=$TARGET_SUBNET_ID_3."
 
 if [[ $TARGET_SUBNET_ID_3 != "" ]]; then

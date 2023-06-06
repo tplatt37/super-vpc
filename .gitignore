@@ -1,3 +1,4 @@
 # Created dynamically via athena-query-setup.sh - DO NOT CHECK THEM IN
 athena-query-config.json
 athena.yml
+vpc.config

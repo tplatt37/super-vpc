@@ -641,6 +641,24 @@ Resources:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
       VpcId: !Ref VPC
 
+  # Interface Endpoint for GuardDuty - so we could use EKS Runtime Monitoring with Agent running in cluster
+  VPCGuardDutyEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcId:
+        Ref: VPC
+      SecurityGroupIds:
+        - Ref: SSMSecurityGroup
+      ServiceName:
+        'Fn::Sub': 'com.amazonaws.${AWS::Region}.guardduty-data'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Ref: PrivateSubnet01
+        - Ref: PrivateSubnet02
+        - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
+
+
 #   ______    ______   __       __ 
 #  /      \  /      \ |  \     /  \
 # |  $$$$$$\|  $$$$$$\| $$\   /  $$

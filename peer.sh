@@ -29,11 +29,11 @@ if [ -z $2 ]; then
     fi
     
     # Get the Instance ID via IMDS
-    # TODO : Make IMDSv2 Compatible
-    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+    TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
     
     # Must figure out which REGION this Cloud9 instance is in.
-    EC2_AVAIL_ZONE=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone`
+    EC2_AVAIL_ZONE=`curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone`
     if [[ -z $EC2_AVAIL_ZONE ]]; then
             echo "Could not access Instance Meta Data Service (IMDS). Exiting..."
             exit 2

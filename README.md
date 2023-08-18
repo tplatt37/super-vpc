@@ -5,7 +5,7 @@ Super-VPC - a VPC for trainers
 It includes:
 
 * 2 or 3 Availability Zones
-* Public Subnet (with NAT GW) and Private Subnet for each AZ
+* Public Subnet (with NAT GW) and Private Subnet for each AZ ($$$!)
 * VPC Flow logs are enabled and logging to an S3 bucket (encrypted with KMS symmetric key)
 * Gateway Endpoints - DynamoDB and S3
 * Interface Endpoints - For Systems Manager
@@ -20,6 +20,17 @@ Also
 Simply run the installer. You need to provide a Prefix for resource naming:
 ```
 ./install.sh "demo"
+```
+
+Here's a recommended way to run this, which places some commonly used info into environment variables:
+```
+export AWS_DEFAULT_REGION=us-west-2
+cd ~/environment && git clone git@github.com:tplatt37/super-vpc; cd ~/environment/super-vpc
+./install.sh "demo"
+PRIVATE_SUBNETS=$(./get-subnets.sh "demo" "private" 2)
+PUBLIC_SUBNETS=$(./get-subnets.sh "demo" "public" 2)
+echo "PRIVATE_SUBNETS=$PRIVATE_SUBNETS"
+echo "PUBLIC_SUBNETS=$PUBLIC_SUBNETS"
 ```
 
 # Then What?

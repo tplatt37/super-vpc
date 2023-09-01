@@ -3,8 +3,13 @@
 # Setup an full-featured VPC - in a hands-free fashion!
 #
 
+# Any error should got to STDERR
+err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+}
+
 if [ -z $1 ]; then
-        echo "Must pass in a unique name that will also be used as a prefix to use for resource naming... Exiting..."
+        err "Must pass in a unique name that will also be used as a prefix to use for resource naming... Exiting..."
         exit 1
 fi
 
@@ -26,7 +31,7 @@ aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
 aws cloudformation wait stack-exists --stack-name $STACK_NAME
 STACK_STATUS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[].StackStatus" --output text)
 if [[ $STACK_STATUS != "CREATE_COMPLETE" ]] && [[ $STACK_STATUS != "UPDATE_COMPLETE" ]]; then
-        echo "Create or Update of Stack $STACK_NAME failed: $STACK_STATUS.  Cannot continue..."
+        err "Create or Update of Stack $STACK_NAME failed: $STACK_STATUS.  Cannot continue..."
         exit 1
 fi
 
@@ -42,7 +47,7 @@ aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
 aws cloudformation wait stack-exists --stack-name $STACK_NAME
 STACK_STATUS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[].StackStatus" --output text)
 if [[ $STACK_STATUS != "CREATE_COMPLETE" ]] && [[ $STACK_STATUS != "UPDATE_COMPLETE" ]]; then
-        echo "Create or Update of Stack $STACK_NAME failed: $STACK_STATUS.  Cannot continue..."
+        err "Create or Update of Stack $STACK_NAME failed: $STACK_STATUS.  Cannot continue..."
         exit 1
 fi
 

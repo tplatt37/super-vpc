@@ -57,7 +57,7 @@ PRIVATE_SUBNETS=$(aws ec2 describe-subnets \
 echo "PRIVATE_SUBNETS=$PRIVATE_SUBNETS"
 
 #
-# This turns on string into multiple lines, we head the amount we want, then turn it into a comma delimited list with no trailing comma.
+# This turns a string into multiple lines, we head the amount we want, then turn it into a comma delimited list with no trailing comma.
 #
 FINAL_PUBLIC=$(echo $PUBLIC_SUBNETS | tr -s '[:blank:]' '\n' | head -n $SUBNET_COUNT | tr '\n' ',' | sed 's/,$/\n/')
 FINAL_PRIVATE=$(echo $PRIVATE_SUBNETS | tr -s '[:blank:]' '\n' | head -n $SUBNET_COUNT | tr '\n' ',' | sed 's/,$/\n/')

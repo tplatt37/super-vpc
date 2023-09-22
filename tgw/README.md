@@ -4,6 +4,8 @@ Optionally with Super-VPC you can create a Transit Gateway (TGW) which is region
 
 You can use this TGW to peer together multiple VPCs and you can peer this TGW to another TGW in another region.
 
+To be clear - this creates a FULLY MESHED network.  You can also do network isolation with TGW, but that is NOT what this demonstration does.
+
 # Pre-Requisites
 
 This script helps setup two peered TGWs for trainer demonstration purposes. 
@@ -12,6 +14,7 @@ It is far simpler (and cheaper) to simply use VPC Peering when you have a small 
 
 You need to provide:
 1. One or more VPCs (created by Super-VPC?) in two regions
+2. The VPCs CANNOT HAVE OVERLAPPING CIDR
 
 You can then setup...
 

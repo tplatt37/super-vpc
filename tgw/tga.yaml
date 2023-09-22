@@ -1,0 +1,50 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+  
+Description: |
+  super-vpc : Transit Gateway Attachment for some VPC
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Default: demo
+    Description: "A Prefix to use on the resource names and exports (To ensure uniqueness). For example, the VPC will be named: demo-vpc"
+
+  VpcId:
+    Type: String
+    Description: "The VPC ID of the vpc to attach to the TGW"
+
+  TgwId:
+    Type: String
+    Description: "The TGW ID of the TGW to attach to"
+
+  SubnetId1:
+    Type: String
+    Description: "First subnet ID"
+
+  SubnetId2:
+    Type: String
+    Description: "Second subnet ID"
+
+Resources:
+
+  TGA:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties: 
+      SubnetIds: 
+        - !Ref SubnetId1
+        - !Ref SubnetId2
+      Tags: 
+        - Key: Name
+          Value: !Join ["-", ["Attachment", !Ref VpcId]]
+        - Key: demo
+          Value: "super-vpc"
+      TransitGatewayId: !Ref TgwId
+      VpcId: !Ref VpcId
+
+Outputs:
+      
+  TgaId:
+    Description: The TGW Attachment Id
+    Value: !Ref TGA

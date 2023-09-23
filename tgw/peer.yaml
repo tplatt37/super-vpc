@@ -1,0 +1,39 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: |
+  super-vpc : Transit Gateway Peering Attachment
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Default: demo
+    Description: "A Prefix to use on the resource names and exports (To ensure uniqueness). For example, the VPC will be named: demo-vpc"
+
+  TgwId:
+    Type: String
+    Description: "TGW ID (Source)"
+
+  PeerTgwId:
+    Type: String
+    Description: "TGW ID (Peer/Accepter/Target)"
+
+  PeerRegion:
+    Type: String
+    Description: "The region the peer/accepter/target TGW exists in"
+
+Resources:
+
+  PeerAttachment:
+    Type: AWS::EC2::TransitGatewayPeeringAttachment
+    Properties: 
+      PeerAccountId: !Ref "AWS::AccountId"
+      PeerRegion: !Ref PeerRegion
+      PeerTransitGatewayId: !Ref PeerTgwId
+      TransitGatewayId: !Ref TgwId
+      Tags: 
+        - Key: Name
+          Value: !Join ["-", ["Attachment", !Ref PeerTgwId]]
+        - Key: demo
+          Value: "super-vpc"

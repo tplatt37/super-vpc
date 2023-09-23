@@ -192,6 +192,7 @@ usage() {
   echo " --name : The "Name" tag value of the TGW."
   echo " --routes : Comma delimited list of CIDRs to be reached via the TGW, such as: 192.168.1.0/24,172.31.0.0/16"
   echo " --region : Region (Optional)"
+  echo " --peerroutes : Comma delimited list of CIDRs to be reached via the TGW, such as: 192.168.1.0/24,172.31.0.0/16"
   echo " --peerregion : Peer Region (Required - where the remote peer TGW resides)"
   echo " --help : This help."
   echo " "

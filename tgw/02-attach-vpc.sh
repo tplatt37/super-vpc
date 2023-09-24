@@ -83,7 +83,8 @@ main() {
     shift
   done
 
-  
+  echo "Beginning... $0"
+
   # Which region? Display to user so they can double-check.
   # Our first preference is the --region argument, then AWS_DEFAULT_REGION, lastly just use that set in the profile.
   REGION=${REGION_ARG:-${AWS_DEFAULT_REGION:-$(aws configure get default.region)}}
@@ -145,7 +146,11 @@ main() {
     for route in "${routes[@]}"; do
       echo "Adding route=$route to $rt"
       # Add route to routetable here.
-      aws ec2 create-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
+      # We try to replace existing rule first. If that fails (254) then do a create instead.
+      aws ec2 replace-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
+      if [[ "$?" == 254 ]]; then
+         aws ec2 create-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
+      fi
     done
   done
  

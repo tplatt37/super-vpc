@@ -72,6 +72,7 @@ main() {
     shift
   done
 
+  echo "Starting $0 ..."
   
   # Which region? Display to user so they can double-check.
   # Our first preference is the --region argument, then AWS_DEFAULT_REGION, lastly just use that set in the profile.
@@ -145,12 +146,18 @@ main() {
   fi
 
   # Specify TGW Static Routes on both ends.
-
+  
   # Need to find:
   # The Peered Attachment ID
   # The Route Table ID for each 
-  ATTACHMENT_ID=$(aws ec2 describe-transit-gateway-peering-attachments --filter "Name=transit-gateway-id,Values=$TGWID" "Name=state,Values=available" --region $REGION --query "TransitGatewayPeeringAttachments[0].TransitGatewayAttachmentId" --output text)
-  echo "ATTACHMENT_ID=$ATTACHMENT_ID"
+
+  # But first, have to wait for the Peering Attachment to be in "available" state.
+  echo "Waiting for Peering Attachment to be in available status..."
+  ATTACHMENT_ID=""
+  while [[ -z $ATTACHMENT_ID ]]; do
+    ATTACHMENT_ID=$(aws ec2 describe-transit-gateway-peering-attachments --filter "Name=transit-gateway-id,Values=$TGWID" "Name=state,Values=available" --region $REGION --query "TransitGatewayPeeringAttachments[0].TransitGatewayAttachmentId" --output text)
+    echo "ATTACHMENT_ID=$ATTACHMENT_ID"
+  done
 
   ROUTE_TABLE_ID=$(aws ec2 describe-transit-gateways --region $REGION --transit-gateway-ids $TGWID --query "TransitGateways[0].Options.PropagationDefaultRouteTableId" --output text)
   echo "ROUTE_TABLE_ID=$ROUTE_TABLE_ID"

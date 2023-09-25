@@ -49,6 +49,16 @@ main() {
         fi
         ;;
 
+      --subnetid3)
+        shift
+        if [[ "$1" != "" ]]; then
+          SUBNETID3="$1"
+        else
+          err "Missing value for --subnetid3."
+          usage
+        fi
+        ;;
+
       --routes)
         shift
         if [[ "$1" != "" ]]; then
@@ -119,6 +129,7 @@ main() {
   TgwId=$TGWID \
   SubnetId1=$SUBNETID1 \
   SubnetId2=$SUBNETID2 \
+  SubnetId3=$SUBNETID3 \
   --stack-name $STACK_NAME --capabilities CAPABILITY_NAMED_IAM \
   --region $REGION
   aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME" --region $REGION
@@ -225,6 +236,11 @@ validate_arguments() {
     exit 1
   fi
   validate_subnet $SUBNETID2
+
+  # TGW Has to be in each AZ you want to use... so if there is a 3rd subnet setting provided, we'll handle that.
+  if [[ "$SUBNETID3" != "" ]]; then
+    validate_subnet $SUBNETID3
+  fi 
 
 }
 

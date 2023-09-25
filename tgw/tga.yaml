@@ -27,6 +27,18 @@ Parameters:
     Type: String
     Description: "Second subnet ID"
 
+  SubnetId3:
+    Type: String
+    Description: "Third subnet ID"
+
+Conditions:
+
+  # Using a Third AZ is optional.
+  UseThirdAZ: !Not
+    - !Equals 
+      - !Ref SubnetId3
+      - ""
+
 Resources:
 
   TGA:
@@ -35,6 +47,7 @@ Resources:
       SubnetIds: 
         - !Ref SubnetId1
         - !Ref SubnetId2
+        - !If [UseThirdAZ, !Ref SubnetId3, !Ref AWS::NoValue]
       Tags: 
         - Key: Name
           Value: !Join ["-", ["Attachment", !Ref VpcId]]

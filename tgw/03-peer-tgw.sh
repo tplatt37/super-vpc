@@ -153,8 +153,10 @@ main() {
 
   # But first, have to wait for the Peering Attachment to be in "available" state.
   echo "Waiting for Peering Attachment to be in available status..."
-  ATTACHMENT_ID=""
-  while [[ -z $ATTACHMENT_ID ]]; do
+  ATTACHMENT_ID="None"
+  while [[ "$ATTACHMENT_ID" == "None" ]]; do
+    # Watch out for throttling...
+    sleep 15
     ATTACHMENT_ID=$(aws ec2 describe-transit-gateway-peering-attachments --filter "Name=transit-gateway-id,Values=$TGWID" "Name=state,Values=available" --region $REGION --query "TransitGatewayPeeringAttachments[0].TransitGatewayAttachmentId" --output text)
     echo "ATTACHMENT_ID=$ATTACHMENT_ID"
   done
@@ -172,8 +174,13 @@ main() {
   done
 
   # Now... the other side
-  ATTACHMENT_ID=$(aws ec2 describe-transit-gateway-peering-attachments --filter "Name=transit-gateway-id,Values=$PEERTGWID" "Name=state,Values=available" --region $PEERREGION --query "TransitGatewayPeeringAttachments[0].TransitGatewayAttachmentId" --output text)
-  echo "ATTACHMENT_ID=$ATTACHMENT_ID"
+  ATTACHMENT_ID="None"
+  while [[ "$ATTACHMENT_ID" == "None" ]]; do
+    # Watch out for throttling...
+    sleep 15
+    ATTACHMENT_ID=$(aws ec2 describe-transit-gateway-peering-attachments --filter "Name=transit-gateway-id,Values=$PEERTGWID" "Name=state,Values=available" --region $PEERREGION --query "TransitGatewayPeeringAttachments[0].TransitGatewayAttachmentId" --output text)
+    echo "ATTACHMENT_ID=$ATTACHMENT_ID"
+  done
 
   ROUTE_TABLE_ID=$(aws ec2 describe-transit-gateways --region $PEERREGION --transit-gateway-ids $PEERTGWID --query "TransitGateways[0].Options.PropagationDefaultRouteTableId" --output text)
   echo "ROUTE_TABLE_ID=$ROUTE_TABLE_ID"

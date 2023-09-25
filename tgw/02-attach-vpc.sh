@@ -157,10 +157,11 @@ main() {
     for route in "${routes[@]}"; do
       echo "Adding route=$route to $rt"
       # Add route to routetable here.
-      # We try to replace existing rule first. If that fails (254) then do a create instead.
-      aws ec2 replace-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
+      # Try to create the route. This will fail if the rule already exists, but then 
+      # we'll do a replace instead to ensure its not an old rule
+      aws ec2 create-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
       if [[ "$?" == 254 ]]; then
-         aws ec2 create-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
+        aws ec2 replace-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
       fi
     done
   done

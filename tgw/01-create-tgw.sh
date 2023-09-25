@@ -39,6 +39,8 @@ main() {
     shift
   done
 
+  echo "Beginning... $0"
+
   validate_arguments
 
   # Which region? Display to user so they can double-check.

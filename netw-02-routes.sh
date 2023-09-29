@@ -63,7 +63,8 @@ echo "SUBNET_ID=$C9_SUBNET_ID"
 C9_ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $C9_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$C9_SUBNET_ID'].RouteTableId")
 echo "C9_ROUTE_TABLE_ID=$C9_ROUTE_TABLE_ID."
 
-if [[ $C9_ROUTE_TABLE_ID -eq "" ]]; then
+# If var is empty 
+if [[ ! $C9_ROUTE_TABLE_ID ]]; then
     # If no route table listed, assume IMPLICIT Associaton to the main route table.
     echo "C9 Must be using the Main Route Table! (Implicit Association)"
     # Must combine both server side --filter and client side --query to get the Main route table
@@ -78,7 +79,7 @@ C9_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $C9_SUBNET_ID --region $C9
 echo "C9_CIDR_BLOCK (Subnet)=$C9_CIDR_BLOCK"
 
 C9_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $C9_VPC_ID --region $C9_REGION --query ["Vpcs[*].CidrBlock"] --output text)
-echo "C9_VPC_CIDR_BLOCK (VP)=$C9_VPC_CIDR_BLOCK"
+echo "C9_VPC_CIDR_BLOCK=$C9_VPC_CIDR_BLOCK"
 
 #
 # Now we need to update the Route Tables.
@@ -115,7 +116,7 @@ echo "RT_PUBLIC=$RT_PUBLIC"
 aws ec2 create-route --region $TARGET_REGION \
     --route-table-id $RT_PUBLIC \
     --vpc-peering-connection-id $PEERING_ID \
-    --destination-cidr-block $C9_CIDR_BLOCK 
+    --destination-cidr-block $C9_VPC_CIDR_BLOCK 
 
 #
 # Private Subnet 01
@@ -133,7 +134,7 @@ echo "RT_PRIVATE=$RT_PRIVATE"
 aws ec2 create-route --region $TARGET_REGION \
     --route-table-id $RT_PRIVATE \
     --vpc-peering-connection-id $PEERING_ID \
-    --destination-cidr-block $C9_CIDR_BLOCK 
+    --destination-cidr-block $C9_VPC_CIDR_BLOCK 
 
 #
 # Private Subnet 02
@@ -151,7 +152,7 @@ echo "RT_PRIVATE=$RT_PRIVATE"
 aws ec2 create-route --region $TARGET_REGION \
     --route-table-id $RT_PRIVATE \
     --vpc-peering-connection-id $PEERING_ID \
-    --destination-cidr-block $C9_CIDR_BLOCK 
+    --destination-cidr-block $C9_VPC_CIDR_BLOCK 
 
 #
 # OPTIONAL Third Subnet (Private)
@@ -175,7 +176,7 @@ if [[ $TARGET_SUBNET_ID_3 != "" ]]; then
     aws ec2 create-route --region $TARGET_REGION \
         --route-table-id $RT_PRIVATE \
         --vpc-peering-connection-id $PEERING_ID \
-        --destination-cidr-block $C9_CIDR_BLOCK 
+        --destination-cidr-block $C9_VPC_CIDR_BLOCK 
        
 else
     echo "3rd private subnet not found... and that's OK."

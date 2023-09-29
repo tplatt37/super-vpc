@@ -89,7 +89,8 @@ echo "SUBNET_ID=$C9_SUBNET_ID"
 C9_ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $C9_REGION --output text --query "RouteTables[*].Associations[?SubnetId=='$C9_SUBNET_ID'].RouteTableId")
 echo "C9_ROUTE_TABLE_ID=$C9_ROUTE_TABLE_ID."
 
-if [[ $C9_ROUTE_TABLE_ID -eq "" ]]; then
+# If var is empty...
+if [[ ! $C9_ROUTE_TABLE_ID ]]; then
     # If no route table listed, assume IMPLICIT Associaton to the main route table.
     echo "C9 Must be using the Main Route Table! (Implicit Association)"
     # Based off this : https://stackoverflow.com/questions/66599866/aws-api-how-to-get-main-route-table-id-by-subnet-id-association-subnet-id-fil

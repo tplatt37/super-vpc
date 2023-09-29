@@ -103,6 +103,9 @@ fi
 C9_CIDR_BLOCK=$(aws ec2 describe-subnets --subnet-ids $C9_SUBNET_ID --region $C9_REGION --output text --query "Subnets[0].CidrBlock")
 echo "C9_CIDR_BLOCK=$C9_CIDR_BLOCK"
 
+C9_VPC_CIDR_BLOCK=$(aws ec2 describe-vpcs --vpc-ids $C9_VPC_ID --region $C9_REGION --query ["Vpcs[*].CidrBlock"] --output text)
+echo "C9_VPC_CIDR_BLOCK=$C9_VPC_CIDR_BLOCK"
+
 # We need to remove the route from the C9 route table BEFORE we delete the Peering Connection.
 aws ec2 delete-route \
     --route-table-id $C9_ROUTE_TABLE_ID \
@@ -123,7 +126,7 @@ ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $TARGET_REGION --output 
 echo "ROUTE_TABLE_ID=$ROUTE_TABLE_ID"
 
 echo "Removing Route Table entry for Public Subnets (1 entry for all public subnets)..."
-aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_CIDR_BLOCK
+aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_VPC_CIDR_BLOCK
 
 
 #
@@ -140,7 +143,7 @@ ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $TARGET_REGION --output 
 echo "ROUTE_TABLE_ID=$ROUTE_TABLE_ID"
 
 echo "Removing Route Table entry for Private Subnets (1 of possibly 3)..."
-aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_CIDR_BLOCK
+aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_VPC_CIDR_BLOCK
 
 #
 # Private Subnet 2
@@ -156,7 +159,7 @@ ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --region $TARGET_REGION --output 
 echo "ROUTE_TABLE_ID=$ROUTE_TABLE_ID"
 
 echo "Removing Route Table entry for Private Subnets (2 of possibly 3)..."
-aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_CIDR_BLOCK
+aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_VPC_CIDR_BLOCK
 
 
 #
@@ -178,7 +181,7 @@ if [[ $TARGET_SUBNET_ID_3 != "" ]]; then
     echo "ROUTE_TABLE_ID=$ROUTE_TABLE_ID"
     
     echo "Removing Route Table entry for Private Subnets (3 of 3)..."
-    aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_CIDR_BLOCK
+    aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID --destination-cidr-block $C9_VPC_CIDR_BLOCK
 
 fi
 

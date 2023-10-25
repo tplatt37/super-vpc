@@ -161,6 +161,7 @@ main() {
       # we'll do a replace instead to ensure its not an old rule
       aws ec2 create-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
       if [[ "$?" == 254 ]]; then
+        echo "Create-route failed, so do replace-route instead."
         aws ec2 replace-route --transit-gateway-id $TGWID --route-table-id $rt --destination-cidr-block $route --region $REGION
       fi
     done

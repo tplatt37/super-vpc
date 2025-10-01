@@ -4,7 +4,7 @@
 # This is how I normally run this. so let's make it a script.
 #
 
-export AWS_DEFAULT_REGION=us-west-2
+export AWS_DEFAULT_REGION=us-east-1
 echo "Creating in $AWS_DEFAULT_REGION with 3 AZs..."
 cd ~/environment && git clone git@github.com:tplatt37/super-vpc; cd ~/environment/super-vpc
 ./install.sh "demo"

@@ -12,7 +12,7 @@ It includes:
 
 Also
 * Optionally, you can create an Athena Workgroup for querying the VPC Flow logs.
-* Easy to peer up your Cloud9 or EC2 instance for demos - Peering Connection, Route Tables, Security Group updates all done via helper script.
+* Easy to peer up your EC2 instance for demos - Peering Connection, Route Tables, Security Group updates all done via helper script.
 * Includes a DB Subnet Group for use with RDS (and a Security Group)
 
 # Installation
@@ -37,17 +37,17 @@ echo "PUBLIC_SUBNETS=$PUBLIC_SUBNETS"
 
 You can use the VPC as usual.
 
-Peer it up with your Cloud9/EC2 demo instance easily:
+Peer it up with your EC2 demo instance easily:
 ```
 ./peer.sh "demo"
 ```
 
-There's a built-in security group you can use with your own EC2 instances. Open ports from your Cloud9 easily:
+There's a built-in security group you can use with your own EC2 instances. Open ports from your EC2 instance easily:
 ```
 ./update-group-ingress.sh "demo" "22,80,443"
 ```
 
-The above opens TCP 22,80, and 443 from source of Cloud9
+The above opens TCP 22,80, and 443 from source of EC2
 
 You can optionally enable an Athena Query Work Group with predefined queries (such as Top Talkers)
 ```
